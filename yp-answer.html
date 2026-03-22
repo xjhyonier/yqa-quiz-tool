@@ -1409,8 +1409,24 @@ window.loginQuiz = async function() {
   } catch(error) {
     console.error('加载题目失败:', error);
     hideLoading();
-    console.error('加载题目失败:', error);
-    showToast('加载题目失败，请检查网络连接', 'error');
+    
+    // 详细的错误提示
+    let errorMsg = '加载题目失败';
+    if (error && error.message) {
+      if (error.message.includes('network') || error.message.includes('Network') || error.message.includes('fetch')) {
+        errorMsg = '网络连接失败，请检查网络后重试';
+      } else if (error.message.includes('permission') || error.message.includes('Permission')) {
+        errorMsg = '权限不足，无法访问数据';
+      } else if (error.message.includes('timeout') || error.message.includes('Timeout')) {
+        errorMsg = '连接超时，请稍后重试';
+      } else {
+        errorMsg = '加载失败: ' + error.message;
+      }
+    } else {
+      errorMsg = '网络连接失败，请检查网络后重试';
+    }
+    
+    showToast(errorMsg, 'error');
   }
 };
 
