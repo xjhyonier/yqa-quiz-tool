@@ -173,12 +173,93 @@
       cursor: pointer;
       font-size: 14px;
       opacity: 0.7;
-      transition: opacity 0.2s;
+      transition: all 0.2s;
       padding: 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
-    .btn-icon:hover { opacity: 1; }
+    .btn-icon:hover { opacity: 1; transform: scale(1.1); }
     .btn-icon.delete { color: var(--error); }
+    .btn-icon.delete:hover { filter: drop-shadow(0 0 4px rgba(255,77,109,0.5)); }
     .btn-icon.edit { color: var(--neon-cyan); }
+    .btn-icon.edit:hover { filter: drop-shadow(0 0 4px rgba(0,255,204,0.4)); }
+
+    /* 邮箱管理模块样式 */
+    .email-manager-card {
+      background: rgba(168, 85, 247, 0.05);
+      border: 1px solid rgba(168, 85, 247, 0.2);
+    }
+    .email-list-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .email-list-table th,
+    .email-list-table td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(168, 85, 247, 0.1);
+    }
+    .email-list-table th {
+      color: var(--neon-purple);
+      font-weight: 600;
+      font-size: 12px;
+      background: rgba(168, 85, 247, 0.15);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .email-list-table thead tr {
+      background: rgba(10, 20, 40, 0.98);
+    }
+    .email-list-table tr:hover {
+      background: rgba(168, 85, 247, 0.05);
+    }
+    .email-list-table td {
+      color: var(--text-primary);
+    }
+    .email-list-container {
+      max-height: 50vh;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(168, 85, 247, 0.3) transparent;
+    }
+    .email-list-container::-webkit-scrollbar {
+      width: 6px;
+    }
+    .email-list-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .email-list-container::-webkit-scrollbar-thumb {
+      background: rgba(168, 85, 247, 0.3);
+      border-radius: 3px;
+    }
+    .email-list-container::-webkit-scrollbar-thumb:hover {
+      background: rgba(168, 85, 247, 0.5);
+    }
+    .email-empty-state {
+      text-align: center;
+      padding: 30px 20px;
+      color: var(--text-muted);
+    }
+    .email-form-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .email-form-row .form-input {
+      flex: 1;
+    }
+    .modal-form-group {
+      margin-bottom: 16px;
+      text-align: left;
+    }
+    .modal-form-label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
 
     /* 添加手机号 */
     .add-phone-row {
@@ -210,6 +291,31 @@
     .form-input:focus {
       border-color: var(--neon-blue);
       box-shadow: 0 0 12px rgba(0,212,255,0.25);
+    }
+    /* 收件人下拉选择框样式 — 必须在 .form-input 之后以覆盖其 background shorthand */
+    select.recipient-select {
+      appearance: none !important;
+      -webkit-appearance: none !important;
+      background: rgba(0, 20, 50, 0.7) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2300d4ff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center / 14px 14px !important;
+      padding-right: 32px !important;
+      border-color: rgba(0, 212, 255, 0.35) !important;
+      cursor: pointer !important;
+      transition: all 0.3s ease !important;
+      color: var(--text-primary) !important;
+    }
+    select.recipient-select:hover {
+      border-color: rgba(0, 212, 255, 0.55) !important;
+      background: rgba(0, 20, 50, 0.9) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2300d4ff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center / 14px 14px !important;
+    }
+    select.recipient-select:focus {
+      border-color: var(--neon-blue) !important;
+      box-shadow: 0 0 12px rgba(0, 212, 255, 0.25) !important;
+    }
+    select.recipient-select option {
+      background: rgba(5, 11, 24, 0.98) !important;
+      color: var(--text-primary) !important;
+      padding: 8px 12px !important;
+      font-size: 13px !important;
     }
     .btn-add {
       padding: 10px 18px;
@@ -461,7 +567,7 @@
       padding: 14px 24px;
       font-size: 14px;
       backdrop-filter: blur(12px);
-      z-index: 999;
+      z-index: 100001;
       transition: transform 0.35s cubic-bezier(.23,1,.32,1), opacity 0.35s;
       opacity: 0;
       pointer-events: none;
@@ -617,7 +723,7 @@
     .modal-overlay {
       position: fixed;
       inset: 0;
-      z-index: 9999;
+      z-index: 99999;
       background: rgba(0,0,0,0.7);
       backdrop-filter: blur(4px);
       display: flex;
@@ -877,6 +983,22 @@
     </div>
   </div>
 
+  <!-- 邮箱地址管理入口 -->
+  <div class="card" style="padding:16px 24px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,rgba(168,85,247,0.2),rgba(168,85,247,0.1));border:1px solid rgba(168,85,247,0.3);display:flex;align-items:center;justify-content:center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+      </div>
+      <div>
+        <div style="font-size:15px;font-weight:600;color:var(--text-primary);">邮箱地址管理</div>
+        <div id="email-count" style="font-size:12px;color:var(--text-muted);">共 0 个联系人</div>
+      </div>
+    </div>
+    <button class="btn-add compact secondary" onclick="openEmailListModal()" style="background:rgba(168,85,247,0.15);border-color:rgba(168,85,247,0.4);color:var(--neon-purple);">
+      管理
+    </button>
+  </div>
+
   <!-- 试卷模板列表 -->
   <div class="card" style="padding:20px 24px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
@@ -934,7 +1056,7 @@
 <div class="toast" id="toast"></div>
 
 <!-- 自定义确认弹窗 -->
-<div id="custom-confirm" class="modal-overlay">
+<div id="custom-confirm" class="modal-overlay" style="z-index:100002;">
   <div class="modal-box">
     <div class="modal-icon">⚠️</div>
     <div id="confirm-msg" class="modal-msg"></div>
@@ -954,6 +1076,62 @@
     <div class="modal-actions">
       <button id="prompt-cancel" class="modal-btn cancel">取消</button>
       <button id="prompt-ok" class="modal-btn primary">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 邮箱编辑弹窗 -->
+<div id="email-modal" class="modal-overlay" style="z-index:100000;">
+  <div class="modal-box" style="min-width:360px;">
+    <div class="modal-icon" style="background:linear-gradient(135deg,#a855f7,#d8b4fe);color:#050b18;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+    </div>
+    <div id="email-modal-title" class="modal-title">添加邮箱地址</div>
+    <div class="modal-form-group">
+      <label class="modal-form-label">姓名</label>
+      <input id="email-name-input" class="modal-input" type="text" placeholder="请输入姓名，如：张三" style="margin-bottom:0;" />
+    </div>
+    <div class="modal-form-group">
+      <label class="modal-form-label">邮箱地址</label>
+      <input id="email-address-input" class="modal-input" type="email" placeholder="请输入邮箱，如：zhangsan@example.com" style="margin-bottom:0;" />
+    </div>
+    <div class="modal-actions" style="margin-top:24px;">
+      <button id="email-cancel" class="modal-btn cancel">取消</button>
+      <button id="email-ok" class="modal-btn primary" style="border-color:rgba(168,85,247,0.5);background:rgba(168,85,247,0.15);color:var(--neon-purple);">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 邮箱列表管理弹窗 -->
+<div id="email-list-modal" class="modal-overlay">
+  <div class="modal-box" style="min-width:480px;max-width:90vw;max-height:80vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
+    <!-- 弹窗头部 -->
+    <div style="padding:24px 24px 16px;border-bottom:1px solid rgba(168,85,247,0.2);display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,rgba(168,85,247,0.2),rgba(168,85,247,0.1));border:1px solid rgba(168,85,247,0.3);display:flex;align-items:center;justify-content:center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+        </div>
+        <div>
+          <div style="font-size:17px;font-weight:600;color:var(--neon-purple);">邮箱地址管理</div>
+          <div id="email-list-count" style="font-size:12px;color:var(--text-muted);">共 0 个联系人</div>
+        </div>
+      </div>
+      <button class="btn-add compact" onclick="openEmailModalFromList()" style="background:linear-gradient(135deg,#a855f7,#d8b4fe);border:none;color:#fff;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M12 5v14M5 12h14"/></svg>
+        添加
+      </button>
+    </div>
+    <!-- 弹窗内容 -->
+    <div id="email-list-content" style="flex:1;overflow-y:auto;padding:0;max-height:50vh;">
+      <div class="email-empty-state" style="padding:40px 24px;">
+        <div style="font-size:40px;margin-bottom:12px;">📭</div>
+        <div style="font-size:14px;margin-bottom:8px;">暂无邮箱地址</div>
+        <div style="font-size:12px;color:var(--text-muted);">点击右上角添加按钮创建联系人</div>
+      </div>
+    </div>
+    <!-- 弹窗底部 -->
+    <div style="padding:16px 24px;border-top:1px solid rgba(168,85,247,0.2);display:flex;justify-content:flex-end;">
+      <button id="email-list-close" class="modal-btn cancel" style="padding:8px 24px;">关闭</button>
     </div>
   </div>
 </div>
@@ -1023,6 +1201,248 @@ function showPrompt(title, defaultValue, onOk) {
 }
 
 // ======================================================
+// 邮箱地址管理模块
+// ======================================================
+let emailContacts = []; // 全局邮箱联系人列表
+let editingEmailIndex = -1; // 当前编辑的邮箱索引
+
+// 加载邮箱联系人列表
+async function loadEmailContacts() {
+  try {
+    const snapshot = await db.ref('email_contacts').once('value');
+    const data = snapshot.val();
+    emailContacts = firebaseValToArray(data);
+    updateEmailCount();
+  } catch(e) {
+    console.error('加载邮箱联系人失败:', e);
+  }
+}
+
+// 更新邮箱计数显示
+function updateEmailCount() {
+  const countEl = document.getElementById('email-count');
+  const listCountEl = document.getElementById('email-list-count');
+  const text = `共 ${emailContacts.length} 个联系人`;
+  if (countEl) countEl.textContent = text;
+  if (listCountEl) listCountEl.textContent = text;
+}
+
+// 打开邮箱列表弹窗
+function openEmailListModal() {
+  const modal = document.getElementById('email-list-modal');
+  const closeBtn = document.getElementById('email-list-close');
+  
+  renderEmailListContent();
+  modal.classList.add('show');
+  
+  function close() {
+    modal.classList.remove('show');
+    closeBtn.removeEventListener('click', close);
+  }
+  
+  closeBtn.addEventListener('click', close);
+}
+
+// 渲染邮箱列表弹窗内容
+function renderEmailListContent() {
+  const container = document.getElementById('email-list-content');
+  const countEl = document.getElementById('email-list-count');
+  if (!container) return;
+  
+  updateEmailCount();
+
+  if (emailContacts.length === 0) {
+    container.innerHTML = `
+      <div class="email-empty-state">
+        <div style="font-size:40px;margin-bottom:12px;">📭</div>
+        <div style="font-size:14px;margin-bottom:8px;">暂无邮箱地址</div>
+        <div style="font-size:12px;color:var(--text-muted);">点击右上角添加按钮创建联系人</div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="email-list-container">
+      <table class="email-list-table">
+        <thead>
+          <tr>
+            <th style="width:30%;">姓名</th>
+            <th style="width:50%;">邮箱地址</th>
+            <th style="width:20%;text-align:center;">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${emailContacts.map((contact, idx) => `
+            <tr>
+              <td>${escHtml(contact.name || '-')}</td>
+              <td>${escHtml(contact.email || '-')}</td>
+              <td style="text-align:center;">
+                <button class="btn-icon edit" onclick="editEmailContactFromList(${idx})" title="编辑" style="margin-right:8px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                </button>
+                <button class="btn-icon delete" onclick="deleteEmailContactFromList(${idx})" title="删除">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                </button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// 从列表弹窗打开编辑
+function editEmailContactFromList(index) {
+  openEmailModal(index, true);
+}
+
+// 从列表弹窗删除
+function deleteEmailContactFromList(index) {
+  if (index < 0 || index >= emailContacts.length) return;
+  const contact = emailContacts[index];
+  showConfirm(`确定要删除 ${contact.name} (${contact.email}) 吗？`, () => {
+    emailContacts.splice(index, 1);
+    saveEmailContacts();
+    renderEmailListContent();
+  }, { okText: '确定删除' });
+}
+
+// 从列表弹窗打开添加
+function openEmailModalFromList() {
+  openEmailModal(-1, true);
+}
+
+// 打开邮箱编辑弹窗
+function openEmailModal(index = -1, fromList = false) {
+  editingEmailIndex = index;
+  const modal = document.getElementById('email-modal');
+  const titleEl = document.getElementById('email-modal-title');
+  const nameInput = document.getElementById('email-name-input');
+  const emailInput = document.getElementById('email-address-input');
+  const okBtn = document.getElementById('email-ok');
+  const cancelBtn = document.getElementById('email-cancel');
+
+  if (index >= 0 && index < emailContacts.length) {
+    // 编辑模式
+    titleEl.textContent = '编辑邮箱地址';
+    nameInput.value = emailContacts[index].name || '';
+    emailInput.value = emailContacts[index].email || '';
+  } else {
+    // 添加模式
+    titleEl.textContent = '添加邮箱地址';
+    nameInput.value = '';
+    emailInput.value = '';
+  }
+
+  modal.classList.add('show');
+  nameInput.focus();
+
+  function close(save) {
+    modal.classList.remove('show');
+    okBtn.removeEventListener('click', onClickOk);
+    cancelBtn.removeEventListener('click', onClickCancel);
+    nameInput.removeEventListener('keydown', onKeyDown);
+    emailInput.removeEventListener('keydown', onKeyDown);
+
+    if (save) {
+      const name = nameInput.value.trim();
+      const email = emailInput.value.trim();
+
+      if (!name) {
+        showToast('请输入姓名', 'error');
+        return;
+      }
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showToast('请输入正确的邮箱地址', 'error');
+        return;
+      }
+
+      // 检查邮箱是否已存在（排除当前编辑的）
+      const exists = emailContacts.some((c, i) => c.email === email && i !== editingEmailIndex);
+      if (exists) {
+        showToast('该邮箱地址已存在', 'error');
+        return;
+      }
+
+      if (editingEmailIndex >= 0) {
+        // 更新
+        emailContacts[editingEmailIndex] = { name, email };
+      } else {
+        // 添加
+        emailContacts.push({ name, email });
+      }
+
+      // 保存到Firebase并刷新列表
+      saveEmailContacts().then(() => {
+        if (fromList) {
+          renderEmailListContent();
+        }
+      });
+    }
+  }
+
+  function onClickOk() { close(true); }
+  function onClickCancel() { close(false); }
+  function onKeyDown(e) {
+    if (e.key === 'Enter') { e.preventDefault(); close(true); }
+    if (e.key === 'Escape') { e.preventDefault(); close(false); }
+  }
+
+  okBtn.addEventListener('click', onClickOk);
+  cancelBtn.addEventListener('click', onClickCancel);
+  nameInput.addEventListener('keydown', onKeyDown);
+  emailInput.addEventListener('keydown', onKeyDown);
+}
+
+// 编辑邮箱联系人（保留兼容）
+function editEmailContact(index) {
+  openEmailModal(index);
+}
+
+// 删除邮箱联系人（保留兼容）
+function deleteEmailContact(index) {
+  if (index < 0 || index >= emailContacts.length) return;
+  const contact = emailContacts[index];
+  showConfirm(`确定要删除 ${contact.name} (${contact.email}) 吗？`, () => {
+    emailContacts.splice(index, 1);
+    saveEmailContacts();
+  }, { okText: '确定删除' });
+}
+
+// 保存邮箱联系人到Firebase
+async function saveEmailContacts() {
+  try {
+    await db.ref('email_contacts').set(emailContacts);
+    updateEmailCount();
+    showToast('保存成功', 'success');
+  } catch(e) {
+    console.error('保存邮箱联系人失败:', e);
+    showToast('保存失败，请重试', 'error');
+    throw e;
+  }
+}
+
+// 下拉选择已有联系人时的处理
+function onRecipientSelectChange(templateId) {
+  const select = document.getElementById(`tpl-recipient-select-${templateId}`);
+  const input = document.getElementById(`tpl-recipient-${templateId}`);
+  const selectedValue = select.value;
+  
+  if (selectedValue) {
+    // 如果输入框已有内容，用分号分隔追加
+    if (input.value.trim()) {
+      input.value = input.value.trim() + '; ' + selectedValue;
+    } else {
+      input.value = selectedValue;
+    }
+    // 重置下拉框
+    select.value = '';
+  }
+}
+
+// ======================================================
 // Firebase 配置
 // ======================================================
 const firebaseConfig = {
@@ -1058,6 +1478,7 @@ let isLoading = false;
 // ======================================================
 function init() {
   loadData();
+  loadEmailContacts();
 }
 
 async function loadData() {
@@ -1202,8 +1623,12 @@ function renderTemplateList() {
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;margin-left:12px;" onclick="event.stopPropagation()">
-          <button class="btn-icon edit" onclick="editTemplateName('${templateId}')" title="重命名">✏️</button>
-          <button class="btn-icon delete" onclick="deleteTemplate('${templateId}')" title="删除">🗑️</button>
+          <button class="btn-icon edit" onclick="editTemplateName('${templateId}')" title="重命名">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+          </button>
+          <button class="btn-icon delete" onclick="deleteTemplate('${templateId}')" title="删除">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          </button>
           <span style="margin-left:4px;font-size:12px;color:var(--neon-blue);transition:transform 0.2s;transform:rotate(${isActive ? '90deg' : '0deg'});">▶</span>
         </div>
       </div>
@@ -1223,7 +1648,9 @@ function renderTemplateList() {
             ${phones.length === 0 ? '<span style="color:var(--text-muted);font-size:12px;padding:4px 0;">暂无人员</span>' : phones.map(phone => `
               <span class="tag">
                 ${phone}
-                <button onclick="deletePhoneFromList('${templateId}', '${phone}')" title="删除">×</button>
+                <button onclick="deletePhoneFromList('${templateId}', '${phone}')" title="删除">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
               </span>
             `).join('')}
           </div>
@@ -1237,15 +1664,25 @@ function renderTemplateList() {
         <div>
           <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:8px;">📧 邮件收件人（${recipients.length}人）</label>
           <div class="phone-list compact" style="margin-bottom:8px;">
-            ${recipients.length === 0 ? '<span style="color:var(--text-muted);font-size:12px;padding:4px 0;">暂无收件人</span>' : recipients.map((email, idx) => `
-              <span class="tag email">
-                ${email}
-                <button onclick="deleteRecipientFromList('${templateId}', ${idx})" title="删除">×</button>
+            ${recipients.length === 0 ? '<span style="color:var(--text-muted);font-size:12px;padding:4px 0;">暂无收件人</span>' : recipients.map((email, idx) => {
+              // 从全局邮箱联系人中查找对应的姓名
+              const contact = emailContacts.find(c => c.email === email);
+              const displayName = contact ? contact.name : email;
+              return `
+              <span class="tag email" title="${email}">
+                ${displayName}
+                <button onclick="deleteRecipientFromList('${templateId}', ${idx})" title="删除 ${email}">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
               </span>
-            `).join('')}
+            `}).join('')}
           </div>
-          <div class="add-phone-row compact">
-            <input class="form-input compact" id="tpl-recipient-${templateId}" type="text" placeholder="多个邮箱用逗号分隔" />
+          <div class="add-phone-row compact" style="flex-wrap:wrap;">
+            <select class="form-input compact recipient-select" id="tpl-recipient-select-${templateId}" style="flex:1;min-width:140px;cursor:pointer;" onchange="onRecipientSelectChange('${templateId}')">
+              <option value="">选择已有联系人...</option>
+              ${emailContacts.filter(c => !recipients.includes(c.email)).map(c => `<option value="${escHtml(c.name)}&lt;${c.email}&gt;">${c.name} (${c.email})</option>`).join('')}
+            </select>
+            <input class="form-input compact" id="tpl-recipient-${templateId}" type="text" placeholder="姓名<邮箱> 或 邮箱，多个用分号分隔" style="flex:2;min-width:200px;" />
             <button class="btn-add compact secondary" onclick="addRecipientToTemplate('${templateId}')">添加</button>
           </div>
         </div>
@@ -2140,39 +2577,85 @@ function addRecipientToTemplate(templateId) {
     return;
   }
   
-  // 支持逗号、分号、空格分隔多个邮箱
-  const emails = inputValue.split(/[,;，；\s]+/).filter(e => e.trim());
-  const validEmails = [];
-  const invalidEmails = [];
+  // 解析输入：支持 "姓名<邮箱>" 或 "姓名,邮箱" 或 "邮箱" 格式
+  // 多个收件人用分号或换行分隔
+  const entries = inputValue.split(/[;；\n]+/).filter(e => e.trim());
+  const validEntries = [];
+  const invalidEntries = [];
   const duplicateEmails = [];
   
   const template = templates[templateId];
   if (!template.recipients) template.recipients = [];
   
-  emails.forEach(email => {
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) return;
+  entries.forEach(entry => {
+    const trimmedEntry = entry.trim();
+    if (!trimmedEntry) return;
     
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      invalidEmails.push(trimmedEmail);
-    } else if (template.recipients.includes(trimmedEmail)) {
-      duplicateEmails.push(trimmedEmail);
+    let name = '';
+    let email = '';
+    
+    // 尝试匹配 "姓名<邮箱>" 格式
+    const angleBracketMatch = trimmedEntry.match(/^(.+?)<([^>]+)>$/);
+    if (angleBracketMatch) {
+      name = angleBracketMatch[1].trim();
+      email = angleBracketMatch[2].trim();
     } else {
-      validEmails.push(trimmedEmail);
+      // 尝试匹配 "姓名,邮箱" 或 "姓名 邮箱" 格式（邮箱必须包含@）
+      const parts = trimmedEntry.split(/[,，\s]+/);
+      const emailPart = parts.find(p => p.includes('@'));
+      if (emailPart) {
+        email = emailPart.trim();
+        name = parts.filter(p => p !== emailPart).join(' ').trim();
+      } else {
+        // 只有邮箱
+        email = trimmedEntry;
+      }
+    }
+    
+    // 验证邮箱格式
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      invalidEntries.push(trimmedEntry);
+    } else if (template.recipients.includes(email)) {
+      duplicateEmails.push(email);
+    } else {
+      // 如果没有提供姓名，使用邮箱@前的部分
+      if (!name) {
+        name = email.split('@')[0];
+      }
+      validEntries.push({ name, email });
     }
   });
   
-  if (validEmails.length === 0) {
+  if (validEntries.length === 0) {
     let msg = '';
-    if (invalidEmails.length > 0) msg = `邮箱格式错误: ${invalidEmails.join(', ')}`;
+    if (invalidEntries.length > 0) msg = `格式错误: ${invalidEntries.join(', ')}`;
     else if (duplicateEmails.length > 0) msg = `邮箱已存在: ${duplicateEmails.join(', ')}`;
     else msg = '请输入正确的邮箱地址';
     showToast(msg, 'error');
     return;
   }
   
-  // 添加所有有效邮箱
-  validEmails.forEach(email => template.recipients.push(email));
+  // 添加所有有效邮箱到模板收件人列表
+  validEntries.forEach(entry => template.recipients.push(entry.email));
+  
+  // 检查并添加新邮箱到全局邮箱联系人列表（使用用户指定的姓名）
+  const newContacts = [];
+  const updatedContacts = [];
+  validEntries.forEach(entry => {
+    const existingIndex = emailContacts.findIndex(c => c.email === entry.email);
+    if (existingIndex === -1) {
+      // 新联系人
+      newContacts.push({ name: entry.name, email: entry.email });
+      emailContacts.push({ name: entry.name, email: entry.email });
+    } else {
+      // 已存在，更新姓名（如果提供了新姓名且与现有不同）
+      const existing = emailContacts[existingIndex];
+      if (entry.name && entry.name !== existing.name) {
+        emailContacts[existingIndex].name = entry.name;
+        updatedContacts.push({ name: entry.name, email: entry.email });
+      }
+    }
+  });
   
   const updates = {};
   updates[`templates/${templateId}/recipients`] = template.recipients;
@@ -2180,17 +2663,27 @@ function addRecipientToTemplate(templateId) {
     updates[`quiz_data/${phone}/recipients`] = template.recipients;
   });
   
+  // 同步更新到邮箱地址管理列表
+  if (newContacts.length > 0 || updatedContacts.length > 0) {
+    updates['email_contacts'] = emailContacts;
+  }
+  
   db.ref().update(updates).then(() => {
     input.value = '';
+    updateEmailCount();
     renderTemplateList();
     
-    let successMsg = `成功添加 ${validEmails.length} 个收件人`;
-    if (invalidEmails.length > 0) successMsg += `，${invalidEmails.length} 个格式错误`;
+    let successMsg = `成功添加 ${validEntries.length} 个收件人`;
+    if (newContacts.length > 0) successMsg += `，新增 ${newContacts.length} 个联系人`;
+    if (updatedContacts.length > 0) successMsg += `，更新 ${updatedContacts.length} 个联系人姓名`;
+    if (invalidEntries.length > 0) successMsg += `，${invalidEntries.length} 个格式错误`;
     if (duplicateEmails.length > 0) successMsg += `，${duplicateEmails.length} 个已存在`;
     showToast(successMsg, 'success');
   }).catch(err => {
     console.error('添加收件人失败:', err);
-    // 回滚
+    // 回滚：从全局联系人中移除新添加的
+    newContacts.forEach(() => emailContacts.pop());
+    // 回滚：从模板收件人中移除
     validEmails.forEach(() => template.recipients.pop());
     showToast('添加失败，请重试', 'error');
   });
