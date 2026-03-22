@@ -1,0 +1,1957 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>一起安笔试</title>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+  <!-- EmailJS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <style>
+    /* ===================== 全局变量 & Reset ===================== */
+    :root {
+      --neon-blue: #00d4ff;
+      --neon-cyan: #00ffcc;
+      --neon-purple: #d8b4fe;  /* 提高亮度，增强对比度 */
+      --bg-dark: #050b18;
+      --bg-card: rgba(10, 20, 40, 0.85);
+      --border-glow: rgba(0, 212, 255, 0.35);
+      --text-primary: #e2f0ff;
+      --text-muted: #9bbce0;  /* 提高亮度，增强对比度 */
+      --success: #00ffcc;
+      --error: #ff4d6d;
+      --font-mono: 'Courier New', Courier, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* ===================== 背景粒子画布 ===================== */
+    #particle-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ===================== 扫描线效果 ===================== */
+    body::after {
+      content: '';
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 212, 255, 0.015) 2px,
+        rgba(0, 212, 255, 0.015) 4px
+      );
+      pointer-events: none;
+      z-index: 1;
+      animation: scanMove 8s linear infinite;
+    }
+    @keyframes scanMove {
+      0% { background-position: 0 0; }
+      100% { background-position: 0 100px; }
+    }
+
+    /* ===================== 主容器 ===================== */
+    .app-wrapper {
+      position: relative;
+      z-index: 10;
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 40px 20px 80px;
+    }
+
+    /* ===================== 头部 ===================== */
+    .header {
+      text-align: center;
+      margin-bottom: 50px;
+    }
+    .header-logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .logo-icon {
+      width: 48px; height: 48px;
+      border: 2px solid var(--neon-blue);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 0 20px rgba(0,212,255,0.5), inset 0 0 10px rgba(0,212,255,0.1);
+      animation: pulse 2.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 20px rgba(0,212,255,0.5), inset 0 0 10px rgba(0,212,255,0.1); }
+      50% { box-shadow: 0 0 35px rgba(0,212,255,0.8), inset 0 0 20px rgba(0,212,255,0.2); }
+    }
+    .logo-text {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      background: linear-gradient(90deg, var(--neon-blue), var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-transform: uppercase;
+    }
+    .header-subtitle {
+      color: var(--text-muted);
+      font-size: 14px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-family: var(--font-mono);
+    }
+    .header-subtitle::before { content: '[ '; }
+    .header-subtitle::after  { content: ' ]'; }
+
+    /* ===================== 卡片基础 ===================== */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glow);
+      border-radius: 16px;
+      padding: 32px;
+      backdrop-filter: blur(12px);
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--neon-blue), var(--neon-cyan), transparent);
+      opacity: 0.7;
+    }
+
+    /* ===================== 屏幕切换 ===================== */
+    #login-screen { display: block; }
+    #quiz-screen   { display: none; }
+    #result-screen { display: none; }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--neon-blue);
+      margin-bottom: 22px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: 1px;
+    }
+    .section-title::before {
+      content: '';
+      display: block;
+      width: 4px; height: 20px;
+      background: linear-gradient(180deg, var(--neon-blue), var(--neon-cyan));
+      border-radius: 2px;
+    }
+
+    .form-group { margin-bottom: 20px; }
+    .form-label {
+      display: block;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      letter-spacing: 1px;
+      font-family: var(--font-mono);
+    }
+    .form-input, .form-textarea {
+      width: 100%;
+      background: rgba(0, 20, 50, 0.7);
+      border: 1px solid rgba(0, 212, 255, 0.25);
+      border-radius: 10px;
+      color: var(--text-primary);
+      font-size: 14px;
+      padding: 12px 16px;
+      outline: none;
+      transition: border-color 0.3s, box-shadow 0.3s;
+      font-family: inherit;
+    }
+    .form-input:focus, .form-textarea:focus {
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 12px rgba(0,212,255,0.25);
+    }
+    .form-textarea {
+      resize: vertical;
+      min-height: 90px;
+    }
+
+    /* 主按钮 */
+    .btn-primary {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #0066ff, #00d4ff);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.3s;
+      text-transform: uppercase;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0,212,255,0.45);
+    }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary::after {
+      content: '';
+      position: absolute;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+      transform: rotate(45deg) translateX(-100%);
+      transition: transform 0.5s;
+    }
+    .btn-primary:hover::after { transform: rotate(45deg) translateX(60%); }
+
+    /* ===================== 答题页 ===================== */
+    .quiz-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .quiz-title {
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(90deg, var(--neon-blue), var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .quiz-timer {
+      font-family: var(--font-mono);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--neon-blue);
+      letter-spacing: 3px;
+      text-shadow: 0 0 12px rgba(0,212,255,0.6);
+    }
+    .quiz-timer.warn { color: var(--error); text-shadow: 0 0 12px rgba(255,77,109,0.7); animation: blink 0.7s step-end infinite; }
+    @keyframes blink { 50% { opacity: 0.4; } }
+
+    /* 进度条：固定在顶部 */
+    .progress-wrap {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 999;
+      background: rgba(5, 11, 24, 0.92);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(0,212,255,0.18);
+      padding: 10px 24px 10px;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.4);
+    }
+    /* 答题页顶部留出固定条高度的空白 */
+    #quiz-screen { padding-top: 72px; }
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      margin-bottom: 6px;
+    }
+    .progress-bar {
+      height: 5px;
+      background: rgba(0,212,255,0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--neon-blue), var(--neon-cyan));
+      border-radius: 3px;
+      transition: width 0.5s ease;
+      box-shadow: 0 0 8px rgba(0,212,255,0.6);
+    }
+
+    /* 题目卡片 */
+    .question-card {
+      margin-bottom: 22px;
+      border: 1px solid rgba(0,212,255,0.15);
+      border-radius: 14px;
+      padding: 24px;
+      background: rgba(0,15,35,0.6);
+      transition: border-color 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    .question-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent);
+    }
+    .question-card.answered { border-color: rgba(0,255,204,0.35); }
+    .question-card.answered::before {
+      background: linear-gradient(90deg, transparent, rgba(0,255,204,0.5), transparent);
+    }
+
+    .q-title-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .q-index {
+      background: linear-gradient(135deg, #0044cc, #00d4ff);
+      color: #fff;
+      min-width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .q-text {
+      font-size: 15px;
+      line-height: 1.65;
+      flex: 1;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+    .q-required {
+      color: var(--error);
+      margin-left: 4px;
+      font-size: 13px;
+    }
+
+    /* 选项按钮 */
+    .options-answer { display: flex; flex-direction: column; gap: 10px; }
+    .option-answer-item { position: relative; }
+    .option-answer-item label {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(0,212,255,0.18);
+      cursor: pointer;
+      transition: all 0.25s;
+      font-size: 14px;
+      width: 100%;
+    }
+    .option-answer-item label:hover {
+      border-color: rgba(0,212,255,0.5);
+      background: rgba(0,212,255,0.06);
+    }
+    /* 美化原生 input 但保持可见 */
+    .option-answer-item input[type=radio],
+    .option-answer-item input[type=checkbox] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(0,212,255,0.4);
+      border-radius: 50%;
+      background: transparent;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.2s;
+      margin-right: 12px;
+    }
+    .option-answer-item input[type=checkbox] {
+      border-radius: 4px;
+    }
+    .option-answer-item input[type=radio]:checked,
+    .option-answer-item input[type=checkbox]:checked {
+      background: rgba(0,255,204,0.3);
+      border-color: var(--neon-cyan);
+    }
+    .option-answer-item input[type=radio]:checked::after {
+      content: '';
+      display: block;
+      width: 8px; height: 8px;
+      background: var(--neon-cyan);
+      border-radius: 50%;
+      margin: 3px auto;
+    }
+    .option-answer-item input[type=checkbox]:checked::after {
+      content: '✓';
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%; height: 100%;
+      color: var(--neon-cyan);
+      font-size: 12px;
+      font-weight: bold;
+      line-height: 18px;
+      text-align: center;
+    }
+    /* 当 input 被选中时，整个选项区域高亮 */
+    .option-answer-item:has(input:checked) label {
+      border-color: var(--neon-cyan);
+      background: rgba(0,255,204,0.08);
+      color: var(--neon-cyan);
+      box-shadow: 0 0 10px rgba(0,255,204,0.15);
+    }
+    .opt-letter {
+      display: inline-block;
+      min-width: 26px;
+      padding: 3px 8px;
+      background: rgba(0,212,255,0.15);
+      border-radius: 5px;
+      color: var(--neon-blue);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      margin-right: 4px;
+      flex-shrink: 0;
+    }
+    .opt-text { flex: 1; line-height: 1.65; }
+    .custom-radio, .custom-check {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(0,212,255,0.4);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    .custom-check { border-radius: 5px; }
+    input:checked ~ .custom-radio,
+    input:checked ~ .custom-check { border-color: var(--neon-cyan); background: rgba(0,255,204,0.2); }
+    .custom-radio::after {
+      content: '';
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--neon-cyan);
+      display: none;
+    }
+    .custom-check::after {
+      content: '✓';
+      font-size: 11px;
+      color: var(--neon-cyan);
+      display: none;
+    }
+    input:checked ~ .custom-radio::after,
+    input:checked ~ .custom-check::after { display: block; }
+
+    /* 选项按钮 */
+    .opt-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(0,212,255,0.18);
+      cursor: pointer;
+      transition: all 0.25s;
+      font-size: 14px;
+      background: none;
+      color: var(--text-primary);
+      width: 100%;
+      text-align: left;
+    }
+    .opt-btn:hover { border-color: rgba(0,212,255,0.5); background: rgba(0,212,255,0.06); }
+    .opt-btn.active {
+      border-color: var(--neon-cyan);
+      background: rgba(0,255,204,0.08);
+      color: var(--neon-cyan);
+    }
+    .opt-dot {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(0,212,255,0.4);
+      border-radius: 50%;
+      flex-shrink: 0;
+      transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .opt-btn.active .opt-dot {
+      border-color: var(--neon-cyan);
+      background: var(--neon-cyan);
+    }
+    .opt-dot::after { content: ''; }
+
+    .opt-box {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(0,212,255,0.4);
+      border-radius: 5px;
+      flex-shrink: 0;
+      transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px;
+    }
+    .opt-btn.active .opt-box {
+      border-color: var(--neon-cyan);
+      background: var(--neon-cyan);
+      color: #001a2e;
+    }
+
+    .answer-textarea {
+      width: 100%;
+      background: rgba(0, 20, 50, 0.7);
+      border: 1px solid rgba(0, 212, 255, 0.25);
+      border-radius: 10px;
+      color: var(--text-primary);
+      font-size: 14px;
+      padding: 12px 16px;
+      outline: none;
+      resize: vertical;
+      min-height: 100px;
+      transition: border-color 0.3s, box-shadow 0.3s;
+      font-family: inherit;
+    }
+    .answer-textarea:focus {
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 12px rgba(0,212,255,0.2);
+    }
+
+    .submit-area {
+      margin-top: 36px;
+      text-align: center;
+    }
+    .submit-hint {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      font-family: var(--font-mono);
+    }
+
+    /* ===================== 结果页 ===================== */
+    .result-center { text-align: center; padding: 20px 0 30px; }
+    .result-icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+      display: block;
+      animation: floatIcon 3s ease-in-out infinite;
+    }
+    @keyframes floatIcon {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    .result-title {
+      font-size: 26px;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--neon-blue), var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 10px;
+    }
+    .result-subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 30px;
+    }
+    .score-display {
+      display: inline-block;
+      font-size: 72px;
+      font-weight: 900;
+      font-family: var(--font-mono);
+      background: linear-gradient(135deg, var(--neon-blue), var(--neon-cyan), var(--neon-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+      margin-bottom: 8px;
+      text-shadow: none;
+      filter: drop-shadow(0 0 20px rgba(0,212,255,0.4));
+    }
+    .score-label {
+      font-size: 14px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      letter-spacing: 2px;
+    }
+    .result-stats {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      margin: 30px 0;
+      flex-wrap: wrap;
+    }
+    .stat-item { text-align: center; }
+    .stat-val {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--neon-blue);
+      font-family: var(--font-mono);
+    }
+    .stat-key {
+      font-size: 12px;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+    }
+
+    .email-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-family: var(--font-mono);
+      margin-top: 20px;
+    }
+    .email-status.sending {
+      border: 1px solid rgba(0,212,255,0.4);
+      color: var(--neon-blue);
+    }
+    .email-status.sent {
+      border: 1px solid rgba(0,255,204,0.5);
+      color: var(--neon-cyan);
+    }
+    .email-status.fail {
+      border: 1px solid rgba(255,77,109,0.5);
+      color: var(--error);
+    }
+    .dot-blink { animation: blink 1s step-end infinite; }
+
+    .btn-restart {
+      margin-top: 28px;
+      padding: 12px 40px;
+      background: none;
+      border: 1px solid rgba(0,212,255,0.4);
+      border-radius: 30px;
+      color: var(--neon-blue);
+      font-size: 14px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: all 0.25s;
+    }
+    .btn-restart:hover {
+      background: rgba(0,212,255,0.08);
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 20px rgba(0,212,255,0.25);
+    }
+
+    /* 答卷详情 */
+    .answer-review { margin-top: 28px; }
+    .review-item {
+      border: 1px solid rgba(0,212,255,0.12);
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 14px;
+      background: rgba(0,10,30,0.5);
+    }
+    .review-q { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+    .review-a { font-size: 13px; color: var(--neon-cyan); }
+
+    /* ===================== 邮件配置 Toast ===================== */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: rgba(0,20,50,0.95);
+      border: 1px solid var(--border-glow);
+      border-radius: 12px;
+      padding: 14px 24px;
+      font-size: 14px;
+      backdrop-filter: blur(12px);
+      z-index: 999;
+      transition: transform 0.35s cubic-bezier(.23,1,.32,1), opacity 0.35s;
+      opacity: 0;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .toast.success { border-color: rgba(0,255,204,0.5); color: var(--neon-cyan); }
+    .toast.error   { border-color: rgba(255,77,109,0.5); color: var(--error); }
+
+    /* ===================== 加载遮罩 ===================== */
+    #loading-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      background: rgba(5, 11, 24, 0.88);
+      backdrop-filter: blur(8px);
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 28px;
+    }
+    #loading-overlay.active {
+      display: flex;
+    }
+    .loading-ring {
+      position: relative;
+      width: 72px;
+      height: 72px;
+    }
+    .loading-ring svg {
+      width: 100%; height: 100%;
+      animation: rotateSvg 1.6s linear infinite;
+    }
+    @keyframes rotateSvg { to { transform: rotate(360deg); } }
+    .loading-ring svg circle {
+      fill: none;
+      stroke-width: 4;
+      stroke-linecap: round;
+    }
+    .loading-ring svg circle.track {
+      stroke: rgba(0, 212, 255, 0.12);
+    }
+    .loading-ring svg circle.arc {
+      stroke: url(#loadGrad);
+      stroke-dasharray: 160;
+      stroke-dashoffset: 40;
+    }
+    .loading-text {
+      font-size: 15px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      letter-spacing: 2px;
+      text-align: center;
+    }
+    .loading-text span.dot {
+      display: inline-block;
+      animation: dotFade 1.2s ease-in-out infinite;
+    }
+    .loading-text span.dot:nth-child(2) { animation-delay: 0.2s; }
+    .loading-text span.dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dotFade {
+      0%, 80%, 100% { opacity: 0.2; }
+      40%            { opacity: 1;   }
+    }
+    .loading-sub {
+      font-size: 12px;
+      color: rgba(107, 143, 181, 0.6);
+      font-family: var(--font-mono);
+      letter-spacing: 1px;
+    }
+
+    /* ===================== 响应式 ===================== */
+    @media (max-width: 600px) {
+      .app-wrapper { padding: 24px 14px 60px; }
+      .card { padding: 22px 18px; }
+      .quiz-timer { font-size: 18px; }
+      .score-display { font-size: 52px; }
+    }
+
+    /* 加载动画 */
+    .loading-spin {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(0,212,255,0.3);
+      border-top-color: var(--neon-blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===================== 试卷信息展示块 ===================== */
+    .quiz-info-block {
+      padding: 8px 0 4px;
+    }
+    .quiz-info-title {
+      font-size: 22px;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--neon-blue), var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+    }
+    .quiz-info-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.75;
+      margin-bottom: 16px;
+    }
+    .quiz-info-meta {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .meta-tag {
+      font-size: 12px;
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(0,212,255,0.3);
+      color: var(--neon-blue);
+      font-family: var(--font-mono);
+      background: rgba(0,212,255,0.05);
+    }
+
+    /* 浮动导航按钮 - 固定在视窗底部，对齐内容区域右侧 */
+    .float-nav {
+      position: fixed;
+      left: calc(50% + 400px + 10px);
+      bottom: 30px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    .float-nav.show {
+      opacity: 1;
+      visibility: visible;
+    }
+    .float-nav-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(0, 30, 60, 0.95);
+      border: 2px solid rgba(0, 212, 255, 0.6);
+      color: var(--neon-blue);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease, opacity 0.3s ease, transform 0.3s ease;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 6px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 212, 255, 0.3);
+      opacity: 1;
+      transform: scale(1);
+    }
+    .float-nav-btn.hidden {
+      opacity: 0;
+      transform: scale(0.8);
+      pointer-events: none;
+    }
+    .float-nav-btn:hover {
+      background: rgba(0, 212, 255, 0.25);
+      border-color: var(--neon-blue);
+      transform: translateY(-3px) scale(1.08);
+      box-shadow: 0 8px 35px rgba(0, 212, 255, 0.5);
+    }
+    .float-nav-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+    /* 小屏幕适配 - 缩小尺寸紧贴边缘 */
+    @media (max-width: 960px) {
+      .float-nav {
+        left: auto;
+        right: 4px;
+        bottom: 20px;
+        gap: 6px;
+      }
+      .float-nav-btn {
+        width: 32px;
+        height: 32px;
+        border-width: 1px;
+      }
+      .float-nav-btn svg {
+        width: 14px;
+        height: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="particle-canvas"></canvas>
+
+<div class="app-wrapper">
+
+  <!-- ==================== 登录屏 ==================== -->
+  <div id="login-screen">
+    <div class="header">
+      <div class="header-logo">
+        <div class="logo-icon">⚡</div>
+        <div class="logo-text">一起安笔试</div>
+      </div>
+      <div class="header-subtitle">一起安（杭州）科技有限公司</div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">登录验证</div>
+      <div class="form-group">
+        <label class="form-label">姓名 *</label>
+        <input class="form-input" id="login-name" type="text" placeholder="请输入您的姓名" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">手机号 *</label>
+        <input class="form-input" id="login-phone" type="tel" placeholder="请输入您的手机号" maxlength="11" />
+      </div>
+      <div id="resume-hint" style="display:none;margin-top:16px;padding:12px 16px;background:rgba(0,255,204,0.07);border:1px solid rgba(0,255,204,0.35);border-radius:10px;font-size:13px;color:var(--neon-cyan);line-height:1.7;"></div>
+
+      <!-- 答题须知提示 -->
+      <div style="margin-top:20px;padding:18px 20px;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.2);border-radius:12px;font-size:13px;line-height:2;color:var(--text-muted);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;color:var(--neon-blue);font-weight:600;font-size:15px;">
+          <span style="font-size:18px;">📋</span> 答题须知
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;align-items:flex-start;gap:6px;">
+            <span style="color:var(--neon-cyan);margin-top:2px;">①</span>
+            <span>请使用<strong style="color:var(--neon-cyan);">真实姓名</strong>登录，确保答卷归属正确</span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:6px;">
+            <span style="color:var(--neon-cyan);margin-top:2px;">②</span>
+            <span>考试限时 <strong style="color:var(--neon-cyan);">90 分钟</strong>，倒计时结束将自动提交</span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:6px;">
+            <span style="color:var(--neon-cyan);margin-top:2px;">③</span>
+            <span>答题过程中可随时修改答案，<strong style="color:var(--neon-cyan);">提交后无法更改</strong></span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:6px;">
+            <span style="color:var(--neon-cyan);margin-top:2px;">④</span>
+            <span>请结合自身经验认真作答，<strong style="color:var(--neon-cyan);">敷衍回答可能影响评估结果</strong></span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:6px;">
+            <span style="color:var(--neon-cyan);margin-top:2px;">⑤</span>
+            <span>提交后答卷将自动发送至 HR 邮箱，无需其他操作</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-primary" onclick="loginQuiz()">开始答题 →</button>
+    </div>
+  </div>
+
+  <!-- ==================== 答题屏 ==================== -->
+  <div id="quiz-screen">
+    <!-- 固定进度条（始终吸附页面顶部） -->
+    <div class="progress-wrap" id="progress-wrap">
+      <div class="progress-info">
+        <span id="progress-text">进度 0 / 0</span>
+        <span id="progress-pct">0%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    </div>
+
+    <div class="quiz-header">
+      <div class="quiz-title" id="display-quiz-title">答题中...</div>
+      <div class="quiz-timer" id="timer-display" style="display:none">00:00</div>
+    </div>
+
+    <div id="quiz-desc-display" style="margin-bottom:20px;padding:14px 18px;background:rgba(0,212,255,0.05);border-left:3px solid rgba(0,212,255,0.4);border-radius:0 10px 10px 0;color:var(--text-muted);font-size:14px;line-height:1.7;display:none;"></div>
+
+    <div id="questions-display"></div>
+
+    <div class="submit-area">
+      <div class="submit-hint">✅ 请确认所有题目已作答后再提交</div>
+      <button class="btn-primary" onclick="submitQuiz()">提交答卷 →</button>
+    </div>
+  </div>
+
+  <!-- ==================== 结果屏 ==================== -->
+  <div id="result-screen">
+    <div class="card">
+      <div class="result-center">
+        <span class="result-icon">🎉</span>
+        <div class="result-title">答题完成！</div>
+        <div class="result-subtitle" id="result-subtitle">感谢参与本次答题</div>
+        <div class="score-display" id="score-display" style="display:none"></div>
+        <div class="score-label" id="score-label" style="display:none">得分</div>
+        <div class="result-stats" id="result-stats"></div>
+        <div class="email-status sending" id="email-status">
+          <div class="loading-spin"></div>
+          <span>正在发送答卷至指定邮箱...</span>
+        </div>
+        <br>
+        <button class="btn-restart" onclick="restartQuiz()" style="display:none">← 返回重新登录</button>
+        <div style="margin-top:28px;padding:18px 32px;background:linear-gradient(135deg,rgba(0,255,204,0.08),rgba(0,212,255,0.06));border:1px solid rgba(0,255,204,0.35);border-radius:16px;font-size:16px;color:var(--neon-cyan);letter-spacing:1px;line-height:1.8;text-shadow:0 0 10px rgba(0,255,204,0.3);">
+          🎊 恭喜你答题完成，请等待 HR 与您联系~
+        </div>
+      </div>
+
+      <div class="answer-review" id="answer-review">
+        <div class="divider"></div>
+        <div class="section-title">您的答卷</div>
+        <div id="review-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 浮动导航按钮 -->
+  <div class="float-nav">
+    <button class="float-nav-btn" onclick="scrollToTop()" title="返回顶部">
+      <svg viewBox="0 0 24 24"><path d="M12 4l-8 8h5v8h6v-8h5z"/></svg>
+    </button>
+    <button class="float-nav-btn" onclick="scrollToBottom()" title="返回底部">
+      <svg viewBox="0 0 24 24"><path d="M12 20l8-8h-5v-8h-6v8h-5z"/></svg>
+    </button>
+  </div>
+</div><!-- end app-wrapper -->
+
+<div class="toast" id="toast"></div>
+
+<!-- 加载遮罩 -->
+<div id="loading-overlay">
+  <div class="loading-ring">
+    <svg viewBox="0 0 72 72">
+      <defs>
+        <linearGradient id="loadGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stop-color="#00d4ff"/>
+          <stop offset="100%" stop-color="#00ffcc"/>
+        </linearGradient>
+      </defs>
+      <circle class="track" cx="36" cy="36" r="30"/>
+      <circle class="arc"   cx="36" cy="36" r="30"/>
+    </svg>
+  </div>
+  <div class="loading-text">
+    正在加载题目<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
+  </div>
+  <div class="loading-sub" id="loading-sub-text">正在连接数据库</div>
+</div>
+
+<script>
+// ======================================================
+// Firebase 配置
+// ======================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyDdbkWUL9KTWHrwtnCduHpn12Jhy_HuKuU",
+  authDomain: "suanfa-quiz.firebaseapp.com",
+  databaseURL: "https://suanfa-quiz-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "suanfa-quiz",
+  storageBucket: "suanfa-quiz.firebasestorage.app",
+  messagingSenderId: "1085203152108",
+  appId: "1:1085203152108:web:3fbff10a117062a872f9c9",
+  measurementId: "G-6FNSBWCD7M"
+};
+
+// 初始化 Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ======================================================
+// 数据模型
+// ======================================================
+let questions = [];        // 题目列表
+let timerInterval = null;
+let timerSeconds  = 0;
+let limitSeconds  = 0;
+
+// EmailJS 配置
+let ejsCfg = {};
+
+// 开始答题的时间戳（年月日时分秒）
+let quizStartTime = '';
+
+// localStorage key 前缀（以手机号区分）
+const LS_PREFIX = 'techquiz_timer_';
+
+// 当前答题手机号（答题期间使用）
+let currentPhone = '';
+
+// 当前答题用户姓名
+let currentName = '';
+
+// 当前试卷标题
+let currentQuizTitle = '';
+
+// ======================================================
+// localStorage 计时持久化工具
+// ======================================================
+function getTimerKey(phone) { return LS_PREFIX + phone; }
+
+function saveTimer(phone, remaining) {
+  try {
+    localStorage.setItem(getTimerKey(phone), JSON.stringify({
+      remaining,
+      savedAt: Date.now()
+    }));
+  } catch(e) {}
+}
+
+function getSavedTimer(phone) {
+  try {
+    const raw = localStorage.getItem(getTimerKey(phone));
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    // 用实际经过的秒数修正剩余时间（防止页面长时间未刷新时误差）
+    const elapsed = Math.floor((Date.now() - data.savedAt) / 1000);
+    const remaining = Math.max(0, data.remaining - elapsed);
+    return { remaining };
+  } catch(e) { return null; }
+}
+
+function clearTimer(phone) {
+  try { localStorage.removeItem(getTimerKey(phone)); } catch(e) {}
+}
+
+// ======================================================
+// 手机号输入：检测 localStorage 中是否有未结束记录
+// ======================================================
+window.onPhoneInput = function(val) {
+  const phone = val.trim();
+  const hint = document.getElementById('resume-hint');
+  if (!/^1[3-9]\d{9}$/.test(phone)) {
+    hint.style.display = 'none';
+    return;
+  }
+  const saved = getSavedTimer(phone);
+  if (saved && saved.remaining > 0) {
+    const m = Math.floor(saved.remaining / 60).toString().padStart(2, '0');
+    const s = (saved.remaining % 60).toString().padStart(2, '0');
+    hint.style.display = 'block';
+    hint.innerHTML = `⏱ 检测到该手机号已开始答题，剩余时间 <strong style="font-family:var(--font-mono)">${m}:${s}</strong>，点击「开始答题」将<strong>续接计时</strong>继续作答。`;
+  } else {
+    hint.style.display = 'none';
+  }
+};
+
+// ======================================================
+// 粒子背景
+// ======================================================
+(function initParticles() {
+  const canvas = document.getElementById('particle-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [];
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const COLORS = ['#00d4ff','#00ffcc','#a855f7','#0066ff'];
+
+  for (let i = 0; i < 120; i++) {
+    particles.push({
+      x: Math.random() * 1920,
+      y: Math.random() * 1080,
+      r: Math.random() * 1.5 + 0.4,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      alpha: Math.random() * 0.6 + 0.2
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // 连线
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 130) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(0,212,255,${0.12 * (1 - dist/130)})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+
+    // 粒子
+    particles.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.alpha;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = W;
+      if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H;
+      if (p.y > H) p.y = 0;
+    });
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ======================================================
+// Toast
+// ======================================================
+window.showToast = function(msg, type='success', duration=3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => { t.className = 'toast'; }, duration);
+};
+
+// ======================================================
+// 动态生成试卷信息（几题、几分）
+// ======================================================
+function buildQuizInfo(qs) {
+  if (!qs || qs.length === 0) return '';
+
+  // 计算大题数（有 parentTitle 的按 parentTitle 去重，无 parentTitle 每题算一个大题）
+  const parentTitles = new Set();
+  let bigCount = 0;
+  qs.forEach(q => {
+    if (q.parentTitle) {
+      if (!parentTitles.has(q.parentTitle)) {
+        parentTitles.add(q.parentTitle);
+        bigCount++;
+      }
+    } else {
+      bigCount++;
+    }
+  });
+
+  // 计算子问数（子问题 = 简答题的 subQuestions 展开后数量）
+  let subCount = 0;
+  qs.forEach(q => {
+    if (q.type === 'text' && q.subQuestions && q.subQuestions.length > 0) {
+      subCount += q.subQuestions.length;
+    }
+  });
+
+  // 计算总分
+  let totalScore = 0;
+  qs.forEach(q => {
+    if (q.type === 'text' && q.subQuestions && q.subQuestions.length > 0) {
+      q.subQuestions.forEach(sub => {
+        totalScore += (typeof sub === 'object' ? (sub.score || 0) : 0);
+      });
+    } else {
+      totalScore += (q.score || 0);
+    }
+  });
+
+  // 生成文案
+  return `本次笔试共 ${bigCount} 道大题，${subCount} 个子问，总分 ${totalScore} 分，请结合自身实际经验认真作答。提交后，系统会将答卷内容，通过邮件发送给HR/面试官。`;
+}
+
+// ======================================================
+// 加载遮罩工具
+// ======================================================
+function showLoading(subText) {
+  const el = document.getElementById('loading-overlay');
+  el.classList.add('active');
+  if (subText) document.getElementById('loading-sub-text').textContent = subText;
+}
+function hideLoading() {
+  document.getElementById('loading-overlay').classList.remove('active');
+}
+
+// ======================================================
+// 登录并加载题目
+// ======================================================
+window.loginQuiz = async function() {
+  console.log('loginQuiz 函数被调用');
+  
+  const name = document.getElementById('login-name').value.trim();
+  const phone = document.getElementById('login-phone').value.trim();
+  console.log('姓名:', name, '手机号:', phone);
+  
+  if (!name) {
+    console.log('姓名未填写');
+    showToast('请填写您的姓名', 'error');
+    return;
+  }
+  
+  if (!/^1[3-9]\d{9}$/.test(phone)) {
+    console.log('手机号格式错误');
+    showToast('请填写正确的手机号（11位）', 'error');
+    return;
+  }
+
+  console.log('开始显示加载遮罩');
+  showLoading('正在连接数据库...');
+
+  try {
+    // 从 Firebase 加载该手机号对应的题目
+    document.getElementById('loading-sub-text').textContent = '正在加载题目配置...';
+    console.log('正在从 Firebase 加载数据...');
+    
+    const snapshot = await db.ref('quiz_data/' + phone).once('value');
+    let phoneData = snapshot.val();
+    console.log('加载数据结果:', phoneData);
+    
+    if (!phoneData) {
+      console.log('未找到题目配置');
+      hideLoading();
+      showToast('未找到该手机号对应的题目配置，请联系 HR', 'error');
+      return;
+    }
+
+    // ===== 同步校验：对比 quiz_data 和 templates 的时间戳 =====
+    const templateId = phoneData.templateId;
+    if (templateId) {
+      document.getElementById('loading-sub-text').textContent = '正在校验题目版本...';
+      try {
+        const templateSnap = await db.ref('templates/' + templateId).once('value');
+        const templateData = templateSnap.val();
+        if (templateData) {
+          const phoneUpdatedAt = phoneData.updatedAt || 0;
+          const templateUpdatedAt = templateData.updatedAt || 0;
+          // 如果模板更新，同步最新数据
+          if (templateUpdatedAt > phoneUpdatedAt) {
+            console.log('检测到模板更新，正在同步最新数据...');
+            document.getElementById('loading-sub-text').textContent = '检测到题目更新，正在同步...';
+            phoneData = {
+              ...phoneData,
+              quizTitle: templateData.quizTitle || templateData.name || '一起安笔试',
+              quizDesc: templateData.quizDesc || '',
+              timeLimit: templateData.timeLimit || 90,
+              questions: templateData.questions || [],
+              recipients: templateData.recipients || [],
+              updatedAt: templateUpdatedAt
+            };
+            // 可选：将同步后的数据写回 quiz_data（保持数据一致）
+            await db.ref('quiz_data/' + phone).update({
+              quizTitle: phoneData.quizTitle,
+              quizDesc: phoneData.quizDesc,
+              timeLimit: phoneData.timeLimit,
+              questions: phoneData.questions,
+              recipients: phoneData.recipients,
+              updatedAt: templateUpdatedAt
+            });
+            console.log('数据同步完成');
+          }
+        }
+      } catch (syncErr) {
+        console.warn('同步校验失败，使用本地数据:', syncErr);
+      }
+    }
+    // =========================================================
+
+    document.getElementById('loading-sub-text').textContent = '题目加载完成，正在初始化...';
+    // 短暂停留让用户看到完成状态
+    await new Promise(r => setTimeout(r, 400));
+
+    currentPhone = phone;
+    currentName = name;
+    questions = phoneData.questions || [];
+    // Firebase 可能把数组存为 {0:x,1:y} 对象，统一转回数组
+    if (questions && !Array.isArray(questions)) questions = Object.values(questions);
+    const rawRecipients = phoneData.recipients;
+    const recipientsList = !rawRecipients ? []
+      : Array.isArray(rawRecipients) ? rawRecipients
+      : Object.values(rawRecipients);
+    console.log('题目数量:', questions.length);
+
+    // 配置 EmailJS
+    // 过滤掉空值并去重
+    const validRecipients = (recipientsList.length > 0 ? recipientsList : ['xujunhui@ifugle.com'])
+      .filter(e => e && typeof e === 'string' && e.includes('@'));
+    
+    console.log('EmailJS 收件人列表:', validRecipients);
+    
+    ejsCfg = {
+      publicKey:  '1hTPXxxoWJh_gk8lj',
+      serviceId:  'service_yaf1vas',
+      templateId: 'template_mwxz2ov',
+      toEmails:   validRecipients.length > 0 ? validRecipients : ['xujunhui@ifugle.com']
+    };
+    if (ejsCfg.publicKey) emailjs.init({ publicKey: ejsCfg.publicKey });
+
+    // 切换屏幕
+    console.log('切换屏幕到答题页');
+    hideLoading();
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('quiz-screen').style.display   = 'block';
+
+    // 显示标题和说明
+    const quizTitle = phoneData.quizTitle || '算法笔试题';
+    currentQuizTitle = quizTitle;  // 保存到全局，供邮件使用
+    const timeLimit = phoneData.timeLimit || 90;
+
+    document.getElementById('display-quiz-title').textContent = quizTitle;
+    console.log('试卷标题设置为:', quizTitle);
+    
+    // 动态生成试卷信息（几题、几分）
+    const quizInfo = buildQuizInfo(questions);
+    if (quizInfo) {
+      const descEl = document.getElementById('quiz-desc-display');
+      descEl.textContent = quizInfo;
+      descEl.style.display = 'block';
+    }
+
+    // 渲染题目
+    console.log('开始渲染题目');
+    renderAnswerQuestions();
+    updateProgress();
+
+    // 计时器：优先从 localStorage 恢复剩余时间
+    limitSeconds = timeLimit * 60;
+    const saved = getSavedTimer(phone);
+    timerSeconds = (saved && saved.remaining > 0) ? saved.remaining : limitSeconds;
+
+    // 记录开始答题时间
+    const _now = new Date();
+    const _pad = n => String(n).padStart(2, '0');
+    quizStartTime = `${_now.getFullYear()}-${_pad(_now.getMonth()+1)}-${_pad(_now.getDate())} ${_pad(_now.getHours())}:${_pad(_now.getMinutes())}:${_pad(_now.getSeconds())}`;
+
+    document.getElementById('timer-display').style.display = '';
+    updateTimerDisplay();
+    timerInterval = setInterval(() => {
+      timerSeconds--;
+      updateTimerDisplay();
+      // 每 5 秒持久化一次剩余时间
+      if (timerSeconds % 5 === 0) saveTimer(currentPhone, timerSeconds);
+      if (timerSeconds <= 0) { clearInterval(timerInterval); submitQuiz(true); }
+    }, 1000);
+
+    // 立即存一次（记录本次开始）
+    saveTimer(phone, timerSeconds);
+    console.log('loginQuiz 完成');
+  } catch(error) {
+    console.error('加载题目失败:', error);
+    hideLoading();
+    console.error('加载题目失败:', error);
+    showToast('加载题目失败，请检查网络连接', 'error');
+  }
+};
+
+// ======================================================
+// 渲染答题题目
+// ======================================================
+window.calcTotalScore = function() {
+  let s = 0;
+  questions.forEach(q => {
+    if (q.type === 'text' && q.subQuestions && q.subQuestions.length > 0) {
+      q.subQuestions.forEach(sub => { s += (typeof sub === 'object' ? (sub.score || 0) : 0); });
+    } else {
+      s += (q.score || 0);
+    }
+  });
+  return s;
+};
+
+window.renderAnswerQuestions = function() {
+  // 调试：打印题目数据结构
+  console.log('=== 题目数据 ===');
+  console.log('questions:', JSON.stringify(questions, null, 2));
+
+  const cont = document.getElementById('questions-display');
+  const totalScore = calcTotalScore();
+
+  // 按大题分组渲染：先题干，后子问
+  let html = '';
+  let lastParent = '';
+
+  // 先收集所有大题信息
+  const bigQuestions = [];
+  questions.forEach((q, idx) => {
+    if (q.parentTitle && q.parentTitle !== lastParent) {
+      lastParent = q.parentTitle;
+      const bqNum = parseInt(q.parentTitle.replace(/[^0-9]/g, '')) || (idx+1);
+      bigQuestions.push({ num: bqNum, title: q.parentTitle, stem: q.parentStem || '' });
+    }
+  });
+
+  lastParent = '';
+  questions.forEach((q, idx) => {
+    const curParent = q.parentTitle || '';
+
+    // 新大题开始：输出大题题干块
+    if (curParent && curParent !== lastParent) {
+      lastParent = curParent;
+      const bqNum = parseInt(curParent.replace(/[^0-9]/g, '')) || (idx+1);
+      const bq = bigQuestions.find(b => b.num === bqNum);
+      const stemHtml = bq && bq.stem
+        ? `<div style="font-size:14.5px;line-height:1.85;color:var(--text-primary);padding:14px 18px 10px;">${escHtml(bq.stem)}</div>`
+        : '';
+
+      html += `
+        <div style="margin: 32px 0 0;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:0;padding:10px 18px 0;">
+            <span style="font-size:17px;font-weight:800;background:linear-gradient(90deg,var(--neon-blue),var(--neon-cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:1px;">${escHtml(curParent)}</span>
+          </div>
+          <div style="margin:0 0 16px;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.18);border-radius:12px;overflow:hidden;">
+            <div style="padding:4px 18px 6px;background:linear-gradient(90deg,rgba(0,212,255,0.1),transparent);border-bottom:1px solid rgba(0,212,255,0.12);">
+              <span style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono);letter-spacing:1px;">▌ 题干</span>
+            </div>
+            ${stemHtml}
+          </div>
+        </div>`;
+    }
+
+    // 子问题答题卡
+    const subLabel = q.subIndex || (idx+1);
+
+    // 题型标签（统一为简答）
+    const typeTag = '<span style="font-size:11px;color:#d8b4fe;font-family:var(--font-mono);background:rgba(216,180,254,0.18);padding:3px 9px;border-radius:12px;flex-shrink:0;margin-right:8px;border:1px solid rgba(216,180,254,0.3);">简答</span>';
+
+    // 计算显示分值：有子问题时为子问题分值总和，否则用 q.score
+    let displayScore = 0;
+    if (q.subQuestions && q.subQuestions.length > 0) {
+      q.subQuestions.forEach(sub => {
+        displayScore += (typeof sub === 'object' ? (sub.score || 0) : 0);
+      });
+    } else {
+      displayScore = q.score || 0;
+    }
+    const scoreTag = displayScore > 0
+      ? `<span style="font-size:12px;color:var(--neon-cyan);font-family:var(--font-mono);border:1px solid rgba(0,255,204,0.4);padding:2px 10px;border-radius:20px;flex-shrink:0;white-space:nowrap;">${displayScore}分</span>`
+      : '';
+
+    // 渲染简答题的子问题（如果有）
+    let subQuestionsHtml = '';
+    if (q.subQuestions && q.subQuestions.length > 0) {
+      subQuestionsHtml = `
+        <div style="margin-left: 20px; padding-left: 20px; border-left: 2px solid rgba(216,180,254,0.5); margin-top: 12px;">
+          ${q.subQuestions.map((sub, subIdx) => {
+            const subText  = (typeof sub === 'object') ? (sub.text  || '') : sub;
+            const subScore = (typeof sub === 'object') ? (sub.score || 0)  : 0;
+            const subScoreTag = subScore
+              ? `<span style="font-size:12px;color:#d8b4fe;font-family:var(--font-mono);border:1px solid rgba(216,180,254,0.5);padding:2px 8px;border-radius:20px;flex-shrink:0;white-space:nowrap;">${subScore}分</span>`
+              : '';
+            return `
+            <div class="question-card" id="qcard-${q.id}-sub-${subIdx}" style="margin-bottom:12px;">
+              <div class="q-title-row">
+                <div class="q-index" style="font-size:11px;min-width:38px;padding:0 4px;background:linear-gradient(135deg,rgba(216,180,254,0.9),rgba(216,180,254,0.75));">${subLabel}.${subIdx+1}</div>
+                <div class="q-text" style="flex:1;font-size:14px;line-height:1.75;">${escHtmlWithBr(subText)}${q.required ? '<span class="q-required">*</span>':''}</div>
+                ${subScoreTag}
+              </div>
+              <textarea class="answer-textarea" id="ans-${q.id}-sub-${subIdx}" placeholder="请在此处作答..." oninput="onAnswerChange()" style="min-height:120px;"></textarea>
+            </div>`;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    html += `
+      <div class="question-card" id="qcard-${q.id}" style="margin-bottom:18px;margin-left:8px;">
+        <div class="q-title-row">
+          <div class="q-index" style="font-size:12px;min-width:38px;padding:0 4px;background:linear-gradient(135deg,rgba(0,68,204,0.9),rgba(0,212,255,0.85));">${escHtml(String(subLabel))}</div>
+          <div class="q-text" style="flex:1;font-size:14.5px;line-height:1.75;">${typeTag}${escHtmlWithBr(q.text)}${q.required ? '<span class="q-required">*</span>':''}</div>
+          ${scoreTag}
+        </div>
+        ${!(q.subQuestions && q.subQuestions.length > 0) ? `
+        <textarea class="answer-textarea" id="ans-${q.id}" placeholder="请在此处作答..." oninput="onAnswerChange()" style="min-height:150px;"></textarea>
+        ` : ''}
+        ${subQuestionsHtml}
+      </div>
+    `;
+  });
+
+  cont.innerHTML = html;
+
+  // 显示总分
+  if (totalScore > 0) {
+    const wrap = document.getElementById('progress-wrap');
+    if (!document.getElementById('total-score-tag')) {
+      const tag = document.createElement('div');
+      tag.id = 'total-score-tag';
+      tag.style.cssText = 'font-size:13px;color:var(--text-muted);font-family:var(--font-mono);text-align:right;margin-bottom:6px;';
+      tag.textContent = `总分：${totalScore} 分`;
+      wrap.insertBefore(tag, wrap.firstChild);
+    }
+  }
+};
+
+// ======================================================
+// 答题交互
+// ======================================================
+window.onAnswerChange = function() {
+  updateProgress();
+};
+
+window.updateProgress = function() {
+  let answered = 0;
+  let totalQuestions = 0;   // 从0开始精确累加
+
+  questions.forEach(q => {
+    if (q.subQuestions && q.subQuestions.length > 0) {
+      // 有子问题：子问题各自算一题，父题不计入
+      totalQuestions += q.subQuestions.length;
+      q.subQuestions.forEach((sub, subIdx) => {
+        const el = document.getElementById(`ans-${q.id}-sub-${subIdx}`);
+        if (el && el.value.trim()) answered++;
+      });
+    } else {
+      // 无子问题：父题算一题
+      totalQuestions += 1;
+      const el = document.getElementById(`ans-${q.id}`);
+      if (el && el.value.trim()) answered++;
+    }
+  });
+
+  const pct = totalQuestions > 0 ? Math.round(answered / totalQuestions * 100) : 0;
+  document.getElementById('progress-text').textContent = `进度 ${answered} / ${totalQuestions}`;
+  document.getElementById('progress-pct').textContent  = `${pct}%`;
+  document.getElementById('progress-fill').style.width = `${pct}%`;
+};
+
+window.updateTimerDisplay = function() {
+  const el = document.getElementById('timer-display');
+  const m = Math.floor(timerSeconds / 60).toString().padStart(2, '0');
+  const s = (timerSeconds % 60).toString().padStart(2, '0');
+  el.textContent = `${m}:${s}`;
+  el.className = 'quiz-timer' + (timerSeconds <= 60 ? ' warn' : '');
+};
+
+// ======================================================
+// 提交答卷
+// ======================================================
+window.submitQuiz = function(forced = false) {
+  // 校验必填题
+  for (const q of questions) {
+    if (!q.required) continue;
+    if (q.type === 'text') {
+      // 简答题的子问题校验
+      if (q.subQuestions && q.subQuestions.length > 0) {
+        for (let subIdx = 0; subIdx < q.subQuestions.length; subIdx++) {
+          const el = document.getElementById(`ans-${q.id}-sub-${subIdx}`);
+          if (!el || !el.value.trim()) {
+            showToast(`${q.subIndex || ('第'+(questions.indexOf(q)+1)+'题')}.${subIdx+1} 为必填项，请作答！`, 'error');
+            document.getElementById(`qcard-${q.id}-sub-${subIdx}`).scrollIntoView({ behavior:'smooth', block:'center' });
+            return;
+          }
+        }
+        // 子问题都已作答，继续检查下一题
+        continue;
+      }
+      // 简答题的主问题
+      const el = document.getElementById(`ans-${q.id}`);
+      if (!el || !el.value.trim()) {
+        showToast(`${q.subIndex || ('第'+(questions.indexOf(q)+1)+'题')} 为必填项，请作答！`, 'error');
+        document.getElementById(`qcard-${q.id}`).scrollIntoView({ behavior:'smooth', block:'center' });
+        return;
+      }
+    }
+  }
+
+  if (timerInterval) clearInterval(timerInterval);
+
+  // 提交后清除该手机号的计时记录
+  if (currentPhone) clearTimer(currentPhone);
+
+  // 收集答案
+  const answers = [];
+  const subAnswers = [];
+
+  questions.forEach((q, idx) => {
+    // 简答题的子问题
+    if (q.subQuestions && q.subQuestions.length > 0) {
+      q.subQuestions.forEach((sub, subIdx) => {
+        const subText  = (typeof sub === 'object') ? (sub.text  || '') : sub;
+        const subScore = (typeof sub === 'object') ? (sub.score || 0)  : 0;
+        const el = document.getElementById(`ans-${q.id}-sub-${subIdx}`);
+        const ans = el ? el.value.trim() : '';
+        subAnswers.push({
+          q: subText,
+          type: 'text',
+          ans,
+          subIndex: `${q.subIndex || (idx+1)}.${subIdx+1}`,
+          parentTitle: q.parentTitle || '',
+          score: subScore,
+          hint: q.hint || ''
+        });
+      });
+      return;
+    }
+
+    // 正常题目（简答题）
+    const el = document.getElementById(`ans-${q.id}`);
+    const ans = el ? el.value.trim() : '';
+    answers.push({ q: q.text, type: 'text', ans, subIndex: q.subIndex||(idx+1), parentTitle: q.parentTitle||'', score: q.score||0, hint: q.hint||'' });
+  });
+
+  // 合并主答案和子答案
+  const finalAnswers = [...answers, ...subAnswers];
+
+  // 切换到结果页
+  document.getElementById('quiz-screen').style.display   = 'none';
+  document.getElementById('result-screen').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  const title = currentQuizTitle || (questions.length > 0 ? '算法笔试题' : '答卷');
+  const name = currentName || currentPhone; // 优先使用姓名，如果没有则使用手机号
+  const phone = currentPhone;
+  document.getElementById('result-subtitle').textContent = `${name}，感谢参与《${title}》`;
+
+  // 统计
+  const totalScore = calcTotalScore();
+  const usedTime = limitSeconds > 0 ? limitSeconds - timerSeconds : 0;
+  const statsHtml = `
+    <div class="stat-item"><div class="stat-val">${finalAnswers.length}</div><div class="stat-key">小题总数</div></div>
+    <div class="stat-item"><div class="stat-val">${finalAnswers.filter(a=>a.ans!=='（未作答）').length}</div><div class="stat-key">已作答</div></div>
+    ${totalScore > 0 ? `<div class="stat-item"><div class="stat-val">${totalScore}</div><div class="stat-key">总分值</div></div>` : ''}
+    ${usedTime > 0 ? `<div class="stat-item"><div class="stat-val">${Math.floor(usedTime/60)}'${usedTime%60}"</div><div class="stat-key">用时</div></div>` : ''}
+  `;
+  document.getElementById('result-stats').innerHTML = statsHtml;
+
+  // 渲染答卷回顾
+  let lastParentR = '';
+  document.getElementById('review-list').innerHTML = finalAnswers.map((a, i) => {
+    let groupHdr = '';
+    if (a.parentTitle && a.parentTitle !== lastParentR) {
+      lastParentR = a.parentTitle;
+      const bqNum = parseInt(a.parentTitle.replace(/[^0-9]/g, '')) || (i+1);
+      const bq = questions.find(q => q.parentTitle === a.parentTitle);
+      const stemBlock = bq && bq.parentStem
+        ? `<div style="font-size:13px;color:#8fb8d8;line-height:1.75;margin-top:8px;padding:10px 14px;background:rgba(0,212,255,0.06);border-radius:8px;">${escHtml(bq.parentStem)}</div>`
+        : '';
+      groupHdr = `
+        <div style="margin:20px 0 10px;">
+          <div style="font-size:14px;font-weight:700;color:var(--neon-blue);padding:6px 12px;background:rgba(0,212,255,0.06);border-left:3px solid var(--neon-blue);border-radius:0 8px 8px 0;">${escHtml(a.parentTitle)}</div>
+          ${stemBlock}
+        </div>`;
+    }
+    const scoreTag = a.score ? `<span style="font-size:11px;color:var(--neon-cyan);font-family:var(--font-mono);">[${a.score}分]</span>` : '';
+    return `
+      ${groupHdr}
+      <div class="review-item">
+        <div class="review-q">${a.subIndex}. ${scoreTag} ${escHtml(a.q)}</div>
+        <div class="review-a" style="white-space:pre-wrap;line-height:1.7;margin-top:8px;">→ ${escHtml(a.ans)}</div>
+      </div>
+    `;
+  }).join('');
+
+  // 发送邮件
+  sendEmail(currentName, '', phone, title, finalAnswers);
+};
+
+// ======================================================
+// 发送邮件（EmailJS）
+// ======================================================
+window.sendEmail = async function(name, org, phone, title, answers) {
+  const statusEl = document.getElementById('email-status');
+
+  console.log('sendEmail 配置检查:', {
+    publicKey: ejsCfg.publicKey ? '已设置' : '未设置',
+    serviceId: ejsCfg.serviceId,
+    templateId: ejsCfg.templateId,
+    toEmails: ejsCfg.toEmails,
+    toEmailsLength: ejsCfg.toEmails?.length
+  });
+
+  if (!ejsCfg.publicKey || !ejsCfg.serviceId || !ejsCfg.templateId || !ejsCfg.toEmails || ejsCfg.toEmails.length === 0) {
+    statusEl.className = 'email-status fail';
+    statusEl.innerHTML = `⚠️ 邮件配置不完整，未发送。<br><small style="font-size:11px;opacity:0.7">(${!ejsCfg.publicKey ? '缺少 publicKey' : !ejsCfg.serviceId ? '缺少 serviceId' : !ejsCfg.templateId ? '缺少 templateId' : '收件人列表为空'})</small>`;
+    console.error('EmailJS 配置不完整:', ejsCfg);
+    return;
+  }
+
+  // 邮件标题：算法笔试题 · 手机号
+  const subject = `${title} · ${name} · ${phone}`;
+
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const timeStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+  // 计算答题用时
+  const usedTime = limitSeconds > 0 ? limitSeconds - timerSeconds : 0;
+  const usedMinutes = Math.floor(usedTime / 60);
+  const usedSeconds = usedTime % 60;
+  const usedTimeStr = `${usedMinutes}分${usedSeconds}秒`;
+
+  // ── 构建纯文本正文 ──
+  const SEP1 = '================================================';
+  const SEP2 = '------------------------------------------------';
+
+  let answersText = '';
+  answersText += `${SEP1}\n`;
+  answersText += `  ${title} · 答卷\n`;
+  answersText += `${SEP1}\n\n`;
+  answersText += `  答题人：${name}\n`;
+  answersText += `  手机号：${phone}\n`;
+  answersText += `  开始时间：${quizStartTime}\n`;
+  answersText += `  提交时间：${timeStr}\n`;
+  answersText += `  答题用时：${usedTimeStr}\n\n`;
+
+  let lastParentText = '';
+  answers.forEach((a, i) => {
+    if (a.parentTitle && a.parentTitle !== lastParentText) {
+      lastParentText = a.parentTitle;
+      answersText += `\n${SEP1}\n`;
+      answersText += `  [ ${a.parentTitle} ]\n`;
+      answersText += `${SEP1}\n`;
+      const bq = questions.find(q => q.parentTitle === a.parentTitle);
+      if (bq && bq.parentStem) {
+        answersText += `\n  题干：\n`;
+        const stem = bq.parentStem;
+        const chunkSize = 44;
+        for (let ci = 0; ci < stem.length; ci += chunkSize) {
+          answersText += `  ${stem.slice(ci, ci + chunkSize)}\n`;
+        }
+        answersText += `\n`;
+      }
+    }
+    answersText += `${SEP2}\n`;
+    answersText += `  ${a.subIndex}.（${a.score} 分）\n`;
+    answersText += `  ${a.q}\n\n`;
+    answersText += `  作答：\n`;
+    const ansLines = (a.ans || '（未作答）').split('\n');
+    ansLines.forEach(line => { answersText += `  ${line}\n`; });
+    answersText += `\n`;
+  });
+
+  answersText += `${SEP1}\n`;
+  answersText += `  以上为完整答卷，由系统自动生成。\n`;
+  answersText += `${SEP1}\n`;
+
+  const answersHtml = answersText;
+
+  // EmailJS 模板变量 - to_email 必须是字符串（多个收件人用逗号分隔）
+  const toEmailStr = ejsCfg.toEmails.join(',');
+  
+  const baseParams = {
+    subject:         subject,
+    quiz_title:      subject,
+    respondent_name: `${name}`,
+    submit_time:     timeStr,
+    start_time:      quizStartTime,
+    answers_text:    answersText,
+    answers_html:    answersHtml,
+    to_email:        toEmailStr,   // 关键：收件人列表字符串
+    reply_to:        ejsCfg.toEmails[0]
+  };
+
+  console.log('发送邮件参数:', { to_email: toEmailStr, recipientsCount: ejsCfg.toEmails.length });
+
+  try {
+    await emailjs.send(ejsCfg.serviceId, ejsCfg.templateId, baseParams);
+    statusEl.className = 'email-status sent';
+    statusEl.innerHTML = '✅ 答卷已成功发送至指定邮箱！';
+  } catch(err) {
+    console.error('EmailJS error:', err);
+    statusEl.className = 'email-status fail';
+    statusEl.innerHTML = `❌ 邮件发送失败：${err.text || err.message || '请检查 EmailJS 配置'}`;
+  }
+}
+
+// ======================================================
+// 重新开始
+// ======================================================
+window.restartQuiz = function() {
+  document.getElementById('result-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'block';
+  // 清除进度总分标签
+  const tag = document.getElementById('total-score-tag');
+  if (tag) tag.remove();
+  // 清除手机号计时缓存
+  if (currentPhone) { clearTimer(currentPhone); currentPhone = ''; }
+  // 清除姓名和试卷标题
+  currentName = '';
+  currentQuizTitle = '';
+  timerSeconds = 0;
+  limitSeconds = 0;
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  // 重置续接提示
+  document.getElementById('resume-hint').style.display = 'none';
+  document.getElementById('login-name').value = '';
+  document.getElementById('login-phone').value = '';
+};
+
+// ======================================================
+// HTML 转义
+// ======================================================
+window.escHtml = function(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+};
+
+// ======================================================
+// HTML 转义并保留换行（用于题目文本）
+// ======================================================
+window.escHtmlWithBr = function(s) {
+  const escaped = String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return escaped.replace(/\n/g, '<br>');
+}
+
+// ======================================================
+// 浮动导航功能
+// ======================================================
+const SCROLL_DURATION = 800; // 平滑滚动时长 800ms
+
+function smoothScrollTo(targetY, duration = SCROLL_DURATION) {
+  const startY = window.scrollY;
+  const diff = targetY - startY;
+  const startTime = performance.now();
+
+  function step(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    // 使用 easeInOutCubic 缓动函数
+    const ease = progress < 0.5
+      ? 4 * progress * progress * progress
+      : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+    window.scrollTo(0, startY + diff * ease);
+
+    if (progress < 1) {
+      requestAnimationFrame(step);
+    }
+  }
+
+  requestAnimationFrame(step);
+}
+
+function scrollToTop() {
+  smoothScrollTo(0);
+}
+
+function scrollToBottom() {
+  smoothScrollTo(document.body.scrollHeight - window.innerHeight);
+}
+
+// 智能显示控制
+(function initFloatNav() {
+  const floatNav = document.querySelector('.float-nav');
+  const topBtn = floatNav?.querySelector('.float-nav-btn:first-child');
+  const bottomBtn = floatNav?.querySelector('.float-nav-btn:last-child');
+
+  if (!floatNav || !topBtn || !bottomBtn) return;
+
+  let lastScrollY = 0;
+  const threshold = 50; // 滚动阈值
+
+  function updateFloatNav() {
+    const scrollY = window.scrollY;
+    const windowHeight = window.innerHeight;
+    const documentHeight = document.body.scrollHeight;
+    const isScrollable = documentHeight > windowHeight + threshold;
+
+    // 是否显示整个导航容器
+    if (isScrollable) {
+      floatNav.classList.add('show');
+    } else {
+      floatNav.classList.remove('show');
+      return;
+    }
+
+    // 顶部检测（滚动小于 100px 视为顶部）
+    const isAtTop = scrollY < 100;
+    topBtn.classList.toggle('hidden', isAtTop);
+
+    // 底部检测（滚动位置接近文档底部）
+    const isAtBottom = scrollY + windowHeight >= documentHeight - 100;
+    bottomBtn.classList.toggle('hidden', isAtBottom);
+
+    lastScrollY = scrollY;
+  }
+
+  // 初始检查
+  updateFloatNav();
+
+  // 监听滚动
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        updateFloatNav();
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }, { passive: true });
+
+  // 监听窗口大小变化
+  window.addEventListener('resize', updateFloatNav);
+})();
+</script>
+</body>
+</html>
