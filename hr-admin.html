@@ -1,0 +1,2189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>一起安考试管理系统</title>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+  <style>
+    :root {
+      --neon-blue: #00d4ff;
+      --neon-cyan: #00ffcc;
+      --neon-purple: #a855f7;
+      --bg-dark: #050b18;
+      --bg-card: rgba(10, 20, 40, 0.85);
+      --border-glow: rgba(0, 212, 255, 0.35);
+      --text-primary: #e2f0ff;
+      --text-muted: #6b8fb5;
+      --success: #00ffcc;
+      --error: #ff4d6d;
+      --font-mono: 'Courier New', Courier, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* 粒子背景 */
+    #particle-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .app-wrapper {
+      position: relative;
+      z-index: 10;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 24px 16px 60px;
+    }
+
+    /* 头部 */
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .header-logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .logo-icon {
+      width: 44px; height: 44px;
+      border: 2px solid var(--neon-blue);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 20px rgba(0,212,255,0.5), inset 0 0 10px rgba(0,212,255,0.1);
+    }
+    .logo-text {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      background: linear-gradient(90deg, var(--neon-blue), var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-transform: uppercase;
+    }
+    .header-subtitle {
+      color: var(--text-muted);
+      font-size: 13px;
+      letter-spacing: 1.5px;
+      font-family: var(--font-mono);
+    }
+    .header-subtitle::before { content: '[ '; }
+    .header-subtitle::after  { content: ' ]'; }
+
+    /* 卡片 */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glow);
+      border-radius: 16px;
+      padding: 28px;
+      backdrop-filter: blur(12px);
+      margin-bottom: 24px;
+      position: relative;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--neon-blue), var(--neon-cyan), transparent);
+      opacity: 0.7;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--neon-blue);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: 1px;
+    }
+    .section-title::before {
+      content: '';
+      display: block;
+      width: 4px; height: 20px;
+      background: linear-gradient(180deg, var(--neon-blue), var(--neon-cyan));
+      border-radius: 2px;
+    }
+
+    /* 手机号列表 */
+    .phone-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .phone-list.compact {
+      max-height: 100px;
+      overflow-y: auto;
+    }
+    .phone-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: rgba(0, 20, 50, 0.6);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.25s;
+      font-size: 13px;
+    }
+    .phone-item:hover {
+      border-color: var(--neon-blue);
+      background: rgba(0,212,255,0.08);
+    }
+    .phone-item.active {
+      border-color: var(--neon-cyan);
+      background: rgba(0,255,204,0.1);
+    }
+    .phone-item.compact {
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+    .phone-number {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+    .phone-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-icon {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+      padding: 4px;
+    }
+    .btn-icon:hover { opacity: 1; }
+    .btn-icon.delete { color: var(--error); }
+    .btn-icon.edit { color: var(--neon-cyan); }
+
+    /* 添加手机号 */
+    .add-phone-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .add-phone-row.compact {
+      padding: 0;
+      background: transparent;
+      border: none;
+    }
+    .form-input {
+      flex: 1;
+      background: rgba(0, 20, 50, 0.7);
+      border: 1px solid rgba(0, 212, 255, 0.25);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 14px;
+      padding: 10px 12px;
+      outline: none;
+      transition: border-color 0.3s;
+      font-family: inherit;
+    }
+    .form-input.compact {
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+    .form-input:focus {
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 12px rgba(0,212,255,0.25);
+    }
+    .btn-add {
+      padding: 10px 18px;
+      background: linear-gradient(135deg, #0066ff, #00d4ff);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.3s;
+      white-space: nowrap;
+    }
+    .btn-add:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,212,255,0.4);
+    }
+    .btn-add.compact {
+      padding: 8px 14px;
+      font-size: 13px;
+    }
+    .btn-add.secondary {
+      background: rgba(0, 212, 255, 0.15);
+      border: 1px solid rgba(0, 212, 255, 0.3);
+      color: var(--neon-blue);
+    }
+    .btn-add.secondary:hover {
+      background: rgba(0, 212, 255, 0.25);
+    }
+
+    /* 标签样式 */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      background: rgba(0, 212, 255, 0.1);
+      border: 1px solid rgba(0, 212, 255, 0.25);
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+    .tag.email {
+      background: rgba(168, 85, 247, 0.1);
+      border-color: rgba(168, 85, 247, 0.25);
+    }
+    .tag button {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0 2px;
+      margin-left: 2px;
+    }
+    .tag button:hover {
+      color: var(--error);
+    }
+
+    /* 题目编辑区 */
+    .questions-area {
+      display: none;
+    }
+    .questions-area.show { display: block; }
+    .questions-area.disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    /* 题目编辑器 */
+    .question-editor {
+      margin-bottom: 16px;
+      padding: 16px;
+      background: rgba(0, 15, 35, 0.6);
+      border: 1px solid rgba(0, 212, 255, 0.15);
+      border-radius: 10px;
+    }
+    .q-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .q-num {
+      background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+      color: #fff;
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .q-type-badge {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      border: 1px solid;
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+    }
+    .q-type-badge.text    { color: var(--neon-purple);  border-color: var(--neon-purple);  }
+    .q-remove-btn {
+      margin-left: auto;
+      background: none;
+      border: 1px solid rgba(255,77,109,0.4);
+      color: var(--error);
+      border-radius: 8px;
+      padding: 4px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .q-remove-btn:hover { background: rgba(255,77,109,0.15); }
+
+    .form-group { margin-bottom: 16px; }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+      font-family: var(--font-mono);
+    }
+    .form-textarea {
+      width: 100%;
+      background: rgba(0, 20, 50, 0.7);
+      border: 1px solid rgba(0, 212, 255, 0.25);
+      border-radius: 10px;
+      color: var(--text-primary);
+      font-size: 14px;
+      padding: 10px 14px;
+      outline: none;
+      resize: vertical;
+      min-height: 80px;
+      transition: border-color 0.3s;
+      font-family: inherit;
+    }
+    .form-textarea:focus {
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 12px rgba(0,212,255,0.2);
+    }
+
+    .options-list {
+      padding-left: 0;
+      list-style: none;
+      margin: 0;
+    }
+    .option-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .option-label {
+      width: 24px; height: 24px;
+      border-radius: 6px;
+      background: rgba(0,212,255,0.12);
+      border: 1px solid rgba(0,212,255,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      color: var(--neon-blue);
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+    }
+    .option-input {
+      flex: 1;
+      background: rgba(0,20,50,0.5);
+      border: 1px solid rgba(0,212,255,0.15);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 13px;
+      padding: 8px 12px;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    .option-input:focus { border-color: var(--neon-blue); }
+
+    .add-option-btn, .add-q-btn {
+      background: none;
+      border: 1px dashed rgba(0,212,255,0.4);
+      color: var(--neon-blue);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.25s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .add-option-btn:hover, .add-q-btn:hover {
+      border-color: var(--neon-blue);
+      background: rgba(0,212,255,0.08);
+    }
+
+    .add-q-section {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .add-q-btn.multi   { color: var(--neon-cyan);   border-color: rgba(0,255,204,0.4); }
+    .add-q-btn.multi:hover { border-color: var(--neon-cyan); background: rgba(0,255,204,0.08); }
+    .add-q-btn.text-q  { color: var(--neon-purple); border-color: rgba(168,85,247,0.4); }
+    .add-q-btn.text-q:hover { border-color: var(--neon-purple); background: rgba(168,85,247,0.08); }
+
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border-glow), transparent);
+      margin: 24px 0;
+    }
+
+    .btn-save {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #0066ff, #00d4ff);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.3s;
+    }
+    .btn-save:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0,212,255,0.45);
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: rgba(0,20,50,0.95);
+      border: 1px solid var(--border-glow);
+      border-radius: 12px;
+      padding: 14px 24px;
+      font-size: 14px;
+      backdrop-filter: blur(12px);
+      z-index: 999;
+      transition: transform 0.35s cubic-bezier(.23,1,.32,1), opacity 0.35s;
+      opacity: 0;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .toast.success { border-color: rgba(0,255,204,0.5); color: var(--neon-cyan); }
+    .toast.error   { border-color: rgba(255,77,109,0.5); color: var(--error); }
+
+    /* 总分提示 */
+    .score-summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: rgba(5, 11, 24, 0.95);
+      border: 1px solid rgba(0,212,255,0.3);
+      border-radius: 10px;
+      font-size: 14px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+    .score-summary .total {
+      color: var(--neon-cyan);
+      font-family: var(--font-mono);
+      font-weight: bold;
+    }
+    .score-summary.warning {
+      border-color: rgba(255,77,109,0.5);
+      color: var(--error);
+    }
+    .score-summary.ok {
+      border-color: rgba(0,255,204,0.5);
+    }
+
+    /* 子问题相关 */
+    .subquestion-section {
+      margin-left: 20px;
+      padding-left: 20px;
+      border-left: 2px solid rgba(168,85,247,0.3);
+      margin-top: 12px;
+    }
+    .subquestion-item {
+      background: rgba(168,85,247,0.05);
+      border: 1px solid rgba(168,85,247,0.2);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .subquestion-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .subquestion-title {
+      font-size: 12px;
+      color: var(--neon-purple);
+      font-weight: bold;
+    }
+    .btn-remove-sub {
+      background: none;
+      border: none;
+      color: var(--error);
+      cursor: pointer;
+      font-size: 12px;
+      padding: 4px 8px;
+    }
+    .btn-remove-sub:hover {
+      background: rgba(255,77,109,0.1);
+      border-radius: 4px;
+    }
+    .btn-add-sub {
+      background: rgba(168,85,247,0.1);
+      border: 1px dashed rgba(168,85,247,0.4);
+      color: var(--neon-purple);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: all 0.2s;
+    }
+    .btn-add-sub:hover {
+      background: rgba(168,85,247,0.2);
+      border-color: var(--neon-purple);
+    }
+
+    @keyframes skeletonPulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.45; }
+    }
+    @keyframes dotBlink {
+      0%, 80%, 100% { transform: scale(1); opacity: 0.5; }
+      40%           { transform: scale(1.4); opacity: 1; }
+    }
+    @keyframes arrowBounce {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(-5px); }
+    }
+
+    /* 浮动导航按钮 - 固定在视窗底部，对齐内容区域右侧 */
+    .float-nav {
+      position: fixed;
+      left: calc(50% + 400px + 10px);
+      bottom: 30px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    .float-nav.show {
+      opacity: 1;
+      visibility: visible;
+    }
+    .float-nav-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(0, 30, 60, 0.95);
+      border: 2px solid rgba(0, 212, 255, 0.6);
+      color: var(--neon-blue);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease, opacity 0.3s ease, transform 0.3s ease;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 6px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 212, 255, 0.3);
+      opacity: 1;
+      transform: scale(1);
+    }
+    .float-nav-btn.hidden {
+      opacity: 0;
+      transform: scale(0.8);
+      pointer-events: none;
+    }
+    .float-nav-btn:hover {
+      background: rgba(0, 212, 255, 0.25);
+      border-color: var(--neon-blue);
+      transform: translateY(-3px) scale(1.08);
+      box-shadow: 0 8px 35px rgba(0, 212, 255, 0.5);
+    }
+    .float-nav-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+    /* 小屏幕适配 - 缩小尺寸紧贴边缘 */
+    @media (max-width: 960px) {
+      .float-nav {
+        left: auto;
+        right: 4px;
+        bottom: 20px;
+        gap: 6px;
+      }
+      .float-nav-btn {
+        width: 32px;
+        height: 32px;
+        border-width: 1px;
+      }
+      .float-nav-btn svg {
+        width: 14px;
+        height: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+<canvas id="particle-canvas"></canvas>
+
+<div class="app-wrapper">
+  <div class="header" style="margin-bottom:24px;">
+    <div class="header-logo" style="margin-bottom:8px;">
+      <div class="logo-icon" style="width:40px;height:40px;font-size:18px;">⚡</div>
+      <div class="logo-text" style="font-size:22px;">一起安考试管理系统</div>
+    </div>
+    <div class="header-subtitle" style="font-size:12px;">一起安（杭州）科技有限公司</div>
+  </div>
+
+  <!-- 使用指南 -->
+  <div style="display:flex;align-items:stretch;gap:0;margin-bottom:20px;background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.18);border-radius:14px;overflow:hidden;">
+    <div style="display:flex;align-items:center;gap:10px;flex:1;padding:14px 18px;">
+      <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#00d4ff,#00ffcc);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#050b18;flex-shrink:0;">1</div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--neon-blue);line-height:1.3;">创建试卷模板</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">填写模板名称并创建</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;padding:0 4px;color:rgba(0,212,255,0.3);font-size:18px;">›</div>
+    <div style="display:flex;align-items:center;gap:10px;flex:1;padding:14px 18px;">
+      <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#a855f7,#d8b4fe);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#050b18;flex-shrink:0;">2</div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--neon-purple);line-height:1.3;">添加人员 &amp; 邮箱</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">配置考生手机号和答卷接收邮箱</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;padding:0 4px;color:rgba(0,212,255,0.3);font-size:18px;">›</div>
+    <div style="display:flex;align-items:center;gap:10px;flex:1;padding:14px 18px;">
+      <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#00ffcc,#00d4ff);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#050b18;flex-shrink:0;">3</div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--neon-cyan);line-height:1.3;">添加题目并保存</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">编辑题目内容，总分需满 100 分</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 快速创建 -->
+  <div class="card" style="padding:20px 24px;margin-bottom:16px;">
+    <div style="display:flex;gap:12px;align-items:center;">
+      <input class="form-input" id="new-template-input" type="text" placeholder="输入模板名称，如：Java后端笔试" style="font-size:14px;" />
+      <button class="btn-add" onclick="addTemplate()" style="padding:10px 24px;">+ 创建模板</button>
+    </div>
+  </div>
+
+  <!-- 试卷模板列表 -->
+  <div class="card" style="padding:20px 24px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="font-size:16px;font-weight:600;color:var(--neon-blue);">📋 试卷模板</div>
+      <div id="template-count" style="font-size:12px;color:var(--text-muted);">共 0 个</div>
+    </div>
+    <div id="template-list"></div>
+  </div>
+
+  <!-- 题目编辑 -->
+  <div class="card" id="questions-card" style="display:none;padding:0;overflow:visible;">
+    <!-- 固定顶部栏：标题 + 保存按钮 + 总分 -->
+    <div id="questions-sticky-header" style="position:sticky;top:0;z-index:100;background:var(--bg-card);border-radius:16px 16px 0 0;padding:20px 24px 16px;border-bottom:1px solid rgba(0,212,255,0.15);backdrop-filter:blur(12px);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div>
+          <div style="font-size:16px;font-weight:600;color:var(--neon-blue);">📝 题目配置</div>
+          <div id="current-template-edit-display" style="font-size:12px;color:var(--text-muted);margin-top:4px;"></div>
+        </div>
+        <button class="btn-save" onclick="saveQuestions()" style="width:auto;padding:10px 24px;">💾 保存题目</button>
+      </div>
+      <div id="score-summary" class="score-summary" style="margin-bottom:0;">
+        <span>总分：</span>
+        <span class="total">0 分</span>
+        <span style="color:var(--error);font-size:12px;">⚠ 需100分</span>
+      </div>
+    </div>
+
+    <div id="no-template-selected" class="empty-state" style="padding:40px 20px;">
+      <div style="font-size:48px;margin-bottom:12px;">📝</div>
+      <div style="font-size:15px;margin-bottom:8px;">请先选择试卷模板</div>
+      <div style="font-size:13px;opacity:0.7;">点击上方模板进行题目配置</div>
+    </div>
+
+    <div id="questions-area" class="questions-area" style="padding:20px 24px;">
+
+      <div id="questions-container"></div>
+
+      <div style="margin-top:20px;padding:16px;background:rgba(0,212,255,0.05);border:1px dashed rgba(0,212,255,0.3);border-radius:10px;text-align:center;">
+        <button class="add-q-btn text-q" onclick="addQuestion('text')" style="margin:0 auto;">+ 添加简答题</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 浮动导航按钮 -->
+  <div class="float-nav">
+    <button class="float-nav-btn" onclick="scrollToTop()" title="返回顶部">
+      <svg viewBox="0 0 24 24"><path d="M12 4l-8 8h5v8h6v-8h5z"/></svg>
+    </button>
+    <button class="float-nav-btn" onclick="scrollToBottom()" title="返回底部">
+      <svg viewBox="0 0 24 24"><path d="M12 20l8-8h-5v-8h-6v8h-5z"/></svg>
+    </button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- 自定义确认弹窗 -->
+<div id="custom-confirm" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;">
+  <div style="background:rgba(5,11,24,0.98);border:1px solid rgba(0,212,255,0.3);border-radius:14px;padding:28px 32px;min-width:280px;text-align:center;box-shadow:0 0 40px rgba(0,212,255,0.15);">
+    <div id="confirm-msg" style="color:#e2e8f0;font-size:15px;margin-bottom:24px;line-height:1.6;"></div>
+    <div style="display:flex;gap:12px;justify-content:center;">
+      <button id="confirm-cancel" style="padding:8px 24px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);color:#94a3b8;cursor:pointer;font-size:14px;">取消</button>
+      <button id="confirm-ok" style="padding:8px 24px;border-radius:8px;border:1px solid rgba(255,77,109,0.5);background:rgba(255,77,109,0.15);color:#ff4d6d;cursor:pointer;font-size:14px;font-weight:600;">确定删除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ======================================================
+// 自定义确认弹窗（替代浏览器 confirm，避免焦点/重绘副作用）
+// ======================================================
+function showConfirm(msg, onOk) {
+  const modal   = document.getElementById('custom-confirm');
+  const msgEl   = document.getElementById('confirm-msg');
+  const okBtn   = document.getElementById('confirm-ok');
+  const cancelBtn = document.getElementById('confirm-cancel');
+
+  msgEl.textContent = msg;
+  modal.style.display = 'flex';
+
+  function close(result) {
+    modal.style.display = 'none';
+    okBtn.removeEventListener('click', onClickOk);
+    cancelBtn.removeEventListener('click', onClickCancel);
+    if (result) onOk();
+  }
+  function onClickOk()     { close(true);  }
+  function onClickCancel() { close(false); }
+
+  okBtn.addEventListener('click', onClickOk);
+  cancelBtn.addEventListener('click', onClickCancel);
+}
+
+// ======================================================
+// Firebase 配置
+// ======================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyDdbkWUL9KTWHrwtnCduHpn12Jhy_HuKuU",
+  authDomain: "suanfa-quiz.firebaseapp.com",
+  databaseURL: "https://suanfa-quiz-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "suanfa-quiz",
+  storageBucket: "suanfa-quiz.firebasestorage.app",
+  messagingSenderId: "1085203152108",
+  appId: "1:1085203152108:web:3fbff10a117062a872f9c9",
+  measurementId: "G-6FNSBWCD7M"
+};
+
+// 初始化 Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ======================================================
+// 全局状态
+// ======================================================
+// 新数据结构：
+// templates: { templateId: { name: '', questions: [], quizTitle: '', quizDesc: '', timeLimit: 90, phones: [] } }
+// phoneToTemplate: { phone: templateId }  // 用于快速查找手机号对应的模板
+let templates = {};       // 试卷模板数据
+let phoneToTemplate = {}; // 手机号到模板的映射
+let currentTemplate = null;  // 当前选中的模板ID
+let currentPhone = null;     // 当前选中的手机号（用于手机号管理）
+let qIdCounter = 0;
+let isLoading = false;
+
+// ======================================================
+// 初始化
+// ======================================================
+function init() {
+  loadData();
+}
+
+async function loadData() {
+  if (isLoading) return;
+  isLoading = true;
+
+  // 显示加载中状态
+  const listEl = document.getElementById('template-list');
+  const countEl = document.getElementById('template-count');
+  if (listEl) {
+    listEl.innerHTML = `
+      <div style="padding:8px 0;">
+        <div style="display:flex;align-items:center;gap:12px;padding:16px;border-radius:12px;background:rgba(0,212,255,0.03);border:1px solid rgba(0,212,255,0.1);margin-bottom:10px;animation:skeletonPulse 1.4s ease-in-out infinite;">
+          <div style="width:36px;height:36px;border-radius:8px;background:rgba(0,212,255,0.08);flex-shrink:0;"></div>
+          <div style="flex:1;">
+            <div style="height:14px;width:55%;border-radius:4px;background:rgba(0,212,255,0.08);margin-bottom:8px;"></div>
+            <div style="height:11px;width:35%;border-radius:4px;background:rgba(0,212,255,0.05);"></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:16px;border-radius:12px;background:rgba(0,212,255,0.03);border:1px solid rgba(0,212,255,0.1);animation:skeletonPulse 1.4s ease-in-out 0.2s infinite;">
+          <div style="width:36px;height:36px;border-radius:8px;background:rgba(0,212,255,0.08);flex-shrink:0;"></div>
+          <div style="flex:1;">
+            <div style="height:14px;width:42%;border-radius:4px;background:rgba(0,212,255,0.08);margin-bottom:8px;"></div>
+            <div style="height:11px;width:28%;border-radius:4px;background:rgba(0,212,255,0.05);"></div>
+          </div>
+        </div>
+        <div style="text-align:center;padding:14px 0 6px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:6px;">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--neon-blue);animation:dotBlink 1.2s ease-in-out infinite;"></span>
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--neon-blue);animation:dotBlink 1.2s ease-in-out 0.3s infinite;"></span>
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--neon-blue);animation:dotBlink 1.2s ease-in-out 0.6s infinite;"></span>
+          <span style="margin-left:4px;">正在加载试卷数据…</span>
+        </div>
+      </div>
+    `;
+  }
+  if (countEl) countEl.textContent = '加载中…';
+
+  try {
+    // 加载模板数据
+    const templatesSnapshot = await db.ref('templates').once('value');
+    const templatesData = templatesSnapshot.val();
+    templates = templatesData || {};
+
+    // Firebase Realtime Database 会把数组存为 {0:..., 1:...} 的对象格式
+    // 加载后统一转换回 JS 数组，避免 push/includes 等方法失效
+    Object.keys(templates).forEach(templateId => {
+      const t = templates[templateId];
+      t.phones     = firebaseValToArray(t.phones);
+      t.recipients = firebaseValToArray(t.recipients);
+      t.questions  = firebaseValToArray(t.questions);
+    });
+
+    // 加载手机号到模板的映射
+    const mappingSnapshot = await db.ref('phone_to_template').once('value');
+    const mappingData = mappingSnapshot.val();
+    phoneToTemplate = mappingData || {};
+
+    // 更新 qIdCounter
+    Object.keys(templates).forEach(templateId => {
+      const questions = templates[templateId].questions || [];
+      const maxId = questions.reduce((max, q) => Math.max(max, q.id || 0), 0);
+      qIdCounter = Math.max(qIdCounter, maxId);
+    });
+
+    renderTemplateList();
+  } catch(e) {
+    console.error('从 Firebase 加载数据失败:', e);
+    showToast('加载数据失败，请检查网络连接', 'error');
+  } finally {
+    isLoading = false;
+  }
+}
+
+/**
+ * 把 Firebase 返回的值安全转换为 JS 数组：
+ * - 已是数组 → 直接返回
+ * - 是对象（Firebase 把数组序列化为 {0:x,1:y}）→ Object.values 转回数组
+ * - null / undefined → 返回 []
+ */
+function firebaseValToArray(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'object') return Object.values(val);
+  return [];
+}
+
+// ======================================================
+// 试卷模板管理
+// ======================================================
+function renderTemplateList() {
+  const container = document.getElementById('template-list');
+  const countEl = document.getElementById('template-count');
+  const templateIds = Object.keys(templates).sort();
+  
+  if (countEl) {
+    countEl.textContent = `共 ${templateIds.length} 个`;
+  }
+
+  if (templateIds.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center;padding:36px 20px 28px;">
+        <div style="font-size:40px;margin-bottom:10px;">📋</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text-primary);margin-bottom:6px;">还没有试卷模板</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px;">在上方输入模板名称，点击「+ 创建模板」开始吧</div>
+        <div style="display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border:1px dashed rgba(0,212,255,0.35);border-radius:20px;font-size:12px;color:var(--neon-blue);animation:arrowBounce 1.5s ease-in-out infinite;">
+          <span style="font-size:16px;">↑</span> 点击上方「+ 创建模板」
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = templateIds.map(templateId => {
+    const template = templates[templateId];
+    const isActive = currentTemplate === templateId;
+    const phones = template.phones || [];
+    const recipients = template.recipients || [];
+    const questions = template.questions || [];
+    
+    // 计算总分
+    let totalScore = 0;
+    questions.forEach(q => {
+      if (q.subQuestions && q.subQuestions.length > 0) {
+        q.subQuestions.forEach(sub => {
+          totalScore += (typeof sub === 'object' ? (sub.score || 0) : 0);
+        });
+      } else {
+        totalScore += (q.score || 0);
+      }
+    });
+    
+    return `
+    <div class="template-item ${isActive ? 'active' : ''}" style="border:1px solid ${isActive ? 'var(--neon-blue)' : 'rgba(0,212,255,0.15)'};border-radius:12px;margin-bottom:10px;overflow:hidden;background:${isActive ? 'rgba(0,212,255,0.05)' : 'transparent'};">
+      <!-- 模板标题栏 -->
+      <div style="display:flex;align-items:center;padding:14px 16px;cursor:pointer;${isActive ? 'background:rgba(0,212,255,0.08);' : ''}" onclick="selectTemplate('${templateId}')">
+        <div style="flex:1;">
+          <div style="font-size:15px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">${escHtml(template.name || templateId)}</div>
+          <div style="font-size:12px;color:var(--text-muted);display:flex;gap:12px;flex-wrap:wrap;">
+            <span>📱 ${phones.length} 人</span>
+            <span>📧 ${recipients.length} 人</span>
+            <span>📝 ${questions.length} 题${totalScore > 0 ? ' · ' + totalScore + '分' : ''}</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-left:12px;" onclick="event.stopPropagation()">
+          <button class="btn-icon edit" onclick="editTemplateName('${templateId}')" title="重命名">✏️</button>
+          <button class="btn-icon delete" onclick="deleteTemplate('${templateId}')" title="删除">🗑️</button>
+          <span style="margin-left:4px;font-size:12px;color:var(--neon-blue);transition:transform 0.2s;transform:rotate(${isActive ? '90deg' : '0deg'});">▶</span>
+        </div>
+      </div>
+      
+      <!-- 展开的设置区域 -->
+      <div style="display:${isActive ? 'block' : 'none'};padding:16px;border-top:1px solid rgba(0,212,255,0.1);">
+        <!-- 试卷备注 -->
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px;">📝 试卷备注（仅管理员可见）</label>
+          <textarea class="form-textarea" id="tpl-desc-${templateId}" placeholder="填写备注信息..." onblur="saveTemplateDescFromEl('${templateId}')" style="min-height:50px;font-size:13px;padding:10px 12px;">${escHtml(template.quizDesc || '')}</textarea>
+        </div>
+        
+        <!-- 手机号管理 -->
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:8px;">📱 参考人员（${phones.length}人）</label>
+          <div class="phone-list compact" style="margin-bottom:8px;">
+            ${phones.length === 0 ? '<span style="color:var(--text-muted);font-size:12px;padding:4px 0;">暂无人员</span>' : phones.map(phone => `
+              <span class="tag">
+                ${phone}
+                <button onclick="deletePhoneFromList('${templateId}', '${phone}')" title="删除">×</button>
+              </span>
+            `).join('')}
+          </div>
+          <div class="add-phone-row compact">
+            <input class="form-input compact" id="tpl-phone-${templateId}" type="text" placeholder="多个手机号用逗号分隔" />
+            <button class="btn-add compact secondary" onclick="addPhoneToTemplate('${templateId}')">添加</button>
+          </div>
+        </div>
+        
+        <!-- 邮件收件人 -->
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:8px;">📧 邮件收件人（${recipients.length}人）</label>
+          <div class="phone-list compact" style="margin-bottom:8px;">
+            ${recipients.length === 0 ? '<span style="color:var(--text-muted);font-size:12px;padding:4px 0;">暂无收件人</span>' : recipients.map((email, idx) => `
+              <span class="tag email">
+                ${email}
+                <button onclick="deleteRecipientFromList('${templateId}', ${idx})" title="删除">×</button>
+              </span>
+            `).join('')}
+          </div>
+          <div class="add-phone-row compact">
+            <input class="form-input compact" id="tpl-recipient-${templateId}" type="text" placeholder="多个邮箱用逗号分隔" />
+            <button class="btn-add compact secondary" onclick="addRecipientToTemplate('${templateId}')">添加</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    `;
+  }).join('');
+}
+
+function addTemplate() {
+  const input = document.getElementById('new-template-input');
+  const name = input.value.trim();
+
+  if (!name) {
+    showToast('请输入模板名称', 'error');
+    return;
+  }
+
+  // 检查是否已存在同名模板
+  const exists = Object.values(templates).some(t => t.name === name);
+  if (exists) {
+    showToast('该模板名称已存在', 'error');
+    return;
+  }
+
+  // 生成唯一ID
+  const templateId = 'template_' + Date.now();
+
+  // 初始化模板数据
+  templates[templateId] = {
+    name: name,
+    questions: [],
+    quizTitle: '算法笔试题',
+    quizDesc: '',
+    timeLimit: 90,
+    phones: [],
+    recipients: []
+  };
+
+  // 保存到 Firebase
+  saveTemplateToFirebase(templateId);
+  input.value = '';
+  renderTemplateList();
+  showToast('模板创建成功', 'success');
+
+  // 自动选中
+  selectTemplate(templateId);
+}
+
+function deleteTemplate(templateId) {
+  const template = templates[templateId];
+  const name = template ? template.name : templateId;
+
+  showConfirm(`确定要删除模板"${name}"吗？该模板下的所有手机号关联将被解除。`, () => {
+    // 解除该模板下所有手机号的关联
+    const phones = template.phones || [];
+    const updates = {};
+    phones.forEach(phone => {
+      delete phoneToTemplate[phone];
+      updates[`phone_to_template/${phone}`] = null;
+    });
+
+    // 删除模板
+    delete templates[templateId];
+
+    // 批量更新 Firebase
+    updates[`templates/${templateId}`] = null;
+    db.ref().update(updates).then(() => {
+      if (currentTemplate === templateId) {
+        currentTemplate = null;
+        currentPhone = null;
+        document.getElementById('questions-card').style.display = 'none';
+      }
+      renderTemplateList();
+      showToast('模板已删除', 'success');
+    }).catch(err => {
+      console.error('删除失败:', err);
+      showToast('删除失败，请重试', 'error');
+    });
+  });
+}
+
+function editTemplateName(templateId) {
+  const template = templates[templateId];
+  if (!template) return;
+
+  const newName = prompt('请输入新的模板名称:', template.name);
+  if (newName && newName.trim() && newName.trim() !== template.name) {
+    template.name = newName.trim();
+    saveTemplateToFirebase(templateId);
+    renderTemplateList();
+    showToast('模板名称已更新', 'success');
+  }
+}
+
+function selectTemplate(templateId) {
+  // 如果点击的是已选中的模板，则取消选中
+  if (currentTemplate === templateId) {
+    currentTemplate = null;
+    currentPhone = null;
+    document.getElementById('questions-card').style.display = 'none';
+  } else {
+    currentTemplate = templateId;
+    currentPhone = null;
+    // 显示题目编辑区域
+    const template = templates[templateId];
+    document.getElementById('questions-card').style.display = 'block';
+    document.getElementById('current-template-edit-display').textContent = `当前模板: ${escHtml(template.name || templateId)}`;
+    updateQuestionsUI();
+  }
+  
+  renderTemplateList();
+}
+
+async function saveTemplateToFirebase(templateId) {
+  try {
+    // 保存时自动更新时间戳
+    const dataToSave = {
+      ...templates[templateId],
+      updatedAt: firebase.database.ServerValue.TIMESTAMP
+    };
+    await db.ref('templates/' + templateId).set(dataToSave);
+  } catch(err) {
+    console.error('保存模板失败:', err);
+    showToast('保存失败，请检查网络连接', 'error');
+  }
+}
+
+// ======================================================
+// 手机号管理
+// ======================================================
+function renderPhoneList() {
+  const container = document.getElementById('phone-list');
+
+  if (!currentTemplate) {
+    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);font-size:13px;padding:20px;">请先选择试卷模板</div>';
+    return;
+  }
+
+  const template = templates[currentTemplate];
+  const phones = template.phones || [];
+
+  if (phones.length === 0) {
+    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);font-size:13px;padding:20px;">暂无手机号，请添加</div>';
+    return;
+  }
+
+  container.innerHTML = phones.map(phone => `
+    <div class="phone-item ${currentPhone === phone ? 'active' : ''}" onclick="selectPhone('${phone}')">
+      <span class="phone-number">${phone}</span>
+      <div class="phone-actions" onclick="event.stopPropagation()">
+        <button class="btn-icon delete" onclick="deletePhone('${phone}')">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function addPhone() {
+  if (!currentTemplate) {
+    showToast('请先选择试卷模板', 'error');
+    return;
+  }
+
+  const input = document.getElementById('new-phone-input');
+  const phone = input.value.trim();
+
+  if (!/^1[3-9]\d{9}$/.test(phone)) {
+    showToast('请输入正确的11位手机号', 'error');
+    return;
+  }
+
+  // 检查手机号是否已被其他模板使用
+  if (phoneToTemplate[phone] && phoneToTemplate[phone] !== currentTemplate) {
+    showToast('该手机号已被其他模板使用', 'error');
+    return;
+  }
+
+  const template = templates[currentTemplate];
+  if (!template.phones) template.phones = [];
+
+  if (template.phones.includes(phone)) {
+    showToast('该手机号已存在于当前模板', 'error');
+    return;
+  }
+
+  // 添加到模板的手机号列表
+  template.phones.push(phone);
+  phoneToTemplate[phone] = currentTemplate;
+
+  // 保存到 Firebase
+  const updates = {};
+  updates[`templates/${currentTemplate}/phones`] = template.phones;
+  updates[`phone_to_template/${phone}`] = currentTemplate;
+  updates[`quiz_data/${phone}`] = {
+    templateId: currentTemplate,
+    quizTitle: template.quizTitle,
+    quizDesc: template.quizDesc,
+    timeLimit: template.timeLimit,
+    questions: template.questions || [],
+    recipients: template.recipients || [],
+    updatedAt: firebase.database.ServerValue.TIMESTAMP
+  };
+
+  db.ref().update(updates).then(() => {
+    input.value = '';
+    renderPhoneList();
+    showToast('手机号添加成功', 'success');
+  }).catch(err => {
+    console.error('添加失败:', err);
+    showToast('添加失败，请重试', 'error');
+  });
+}
+
+function deletePhone(phone) {
+  if (!currentTemplate) return;
+
+  showConfirm(`确定要删除手机号 ${phone} 吗？`, () => {
+    const template = templates[currentTemplate];
+    if (!template || !template.phones) return;
+
+    // 从模板的手机号列表中移除
+    template.phones = template.phones.filter(p => p !== phone);
+    delete phoneToTemplate[phone];
+
+    // 更新 Firebase
+    const updates = {};
+    updates[`templates/${currentTemplate}/phones`] = template.phones;
+    updates[`phone_to_template/${phone}`] = null;
+    updates[`quiz_data/${phone}`] = null;
+
+    db.ref().update(updates).then(() => {
+      if (currentPhone === phone) {
+        currentPhone = null;
+      }
+      renderPhoneList();
+      showToast('已删除', 'success');
+    }).catch(err => {
+      console.error('删除失败:', err);
+      showToast('删除失败，请重试', 'error');
+    });
+  });
+}
+
+function selectPhone(phone) {
+  currentPhone = phone;
+  renderPhoneList();
+}
+
+// ======================================================
+// 收件人管理
+// ======================================================
+function renderRecipientList() {
+  const container = document.getElementById('recipient-list');
+
+  if (!currentTemplate) {
+    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);font-size:13px;padding:20px;">请先选择试卷模板</div>';
+    return;
+  }
+
+  const template = templates[currentTemplate];
+  const recipients = template.recipients || [];
+
+  if (recipients.length === 0) {
+    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);font-size:13px;padding:20px;">暂无收件人，请添加</div>';
+    return;
+  }
+
+  container.innerHTML = recipients.map((email, idx) => `
+    <div class="phone-item">
+      <span class="phone-number" style="font-size:13px;">${escHtml(email)}</span>
+      <div class="phone-actions" onclick="event.stopPropagation()">
+        <button class="btn-icon delete" onclick="deleteRecipient(${idx})">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function addRecipient() {
+  if (!currentTemplate) {
+    showToast('请先选择试卷模板', 'error');
+    return;
+  }
+
+  const input = document.getElementById('new-recipient-input');
+  const email = input.value.trim();
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showToast('请输入正确的邮箱地址', 'error');
+    return;
+  }
+
+  const template = templates[currentTemplate];
+  if (!template.recipients) template.recipients = [];
+
+  if (template.recipients.includes(email)) {
+    showToast('该邮箱已存在', 'error');
+    return;
+  }
+
+  template.recipients.push(email);
+
+  // 同步更新 Firebase：模板 + 所有关联手机号的 quiz_data
+  const updates = {};
+  updates[`templates/${currentTemplate}/recipients`] = template.recipients;
+  (template.phones || []).forEach(phone => {
+    updates[`quiz_data/${phone}/recipients`] = template.recipients;
+  });
+
+  db.ref().update(updates).then(() => {
+    input.value = '';
+    renderRecipientList();
+    showToast('收件人添加成功', 'success');
+  }).catch(err => {
+    console.error('添加收件人失败:', err);
+    template.recipients.pop(); // 回滚
+    showToast('添加失败，请重试', 'error');
+  });
+}
+
+function deleteRecipient(idx) {
+  if (!currentTemplate) return;
+
+  const template = templates[currentTemplate];
+  if (!template.recipients || !template.recipients[idx]) return;
+
+  const email = template.recipients[idx];
+
+  showConfirm(`确定要删除收件人 ${email} 吗？`, () => {
+    template.recipients.splice(idx, 1);
+
+    const updates = {};
+    updates[`templates/${currentTemplate}/recipients`] = template.recipients;
+    (template.phones || []).forEach(phone => {
+      updates[`quiz_data/${phone}/recipients`] = template.recipients;
+    });
+
+    db.ref().update(updates).then(() => {
+      renderRecipientList();
+      showToast('已删除', 'success');
+    }).catch(err => {
+      console.error('删除收件人失败:', err);
+      showToast('删除失败，请重试', 'error');
+    });
+  });
+}
+
+// ======================================================
+// 题目编辑
+// ======================================================
+function updateQuestionsUI() {
+  const noTemplateDiv = document.getElementById('no-template-selected');
+  const questionsArea = document.getElementById('questions-area');
+
+  if (!currentTemplate || !templates[currentTemplate]) {
+    noTemplateDiv.style.display = 'block';
+    questionsArea.classList.remove('show');
+    return;
+  }
+
+  const template = templates[currentTemplate];
+  noTemplateDiv.style.display = 'none';
+  questionsArea.classList.add('show');
+
+  // 从模板同步到全局 questions（深拷贝，防止引用问题）
+  questions = JSON.parse(JSON.stringify(template.questions || []));
+
+  // 重置题目ID计数器
+  const maxId = questions.reduce((max, q) => Math.max(max, q.id || 0), 0);
+  qIdCounter = maxId;
+
+  renderQuestions();
+}
+
+let questions = [];
+
+function renderQuestions() {
+  // 注意：不在这里重置 questions，只做渲染
+  const container = document.getElementById('questions-container');
+
+  if (questions.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:30px 0;">暂无题目，请添加</div>';
+    updateScoreSummary();
+    return;
+  }
+
+  container.innerHTML = questions.map((q, idx) => {
+    const typeLabel = '简答';
+    const typeClass  = 'text';
+    const subLabel = q.subIndex || (idx+1);
+    // 计算显示分值：有子问题时为子问题分值总和，否则用 q.score
+    let displayScore = 0;
+    if (q.subQuestions && q.subQuestions.length > 0) {
+      q.subQuestions.forEach(sub => {
+        displayScore += (typeof sub === 'object' ? (sub.score || 0) : 0);
+      });
+    } else {
+      displayScore = q.score || 0;
+    }
+    const scoreLabel = displayScore > 0 ? `<span class="q-score-label" style="color:var(--neon-cyan);font-size:11px;font-family:var(--font-mono);border:1px solid rgba(0,255,204,0.4);padding:2px 8px;border-radius:10px;">${displayScore}分</span>` : '<span class="q-score-label" style="display:none;"></span>';
+
+    // 简答题的子问题
+    let subQuestionsHtml = '';
+    const subs = q.subQuestions || [];
+    const subsHtml = subs.map((sub, subIdx) => {
+      // 兼容旧格式（纯字符串）和新格式（对象）
+      const subText  = (typeof sub === 'object') ? (sub.text  || '') : sub;
+      const subScore = (typeof sub === 'object') ? (sub.score || 0)  : 0;
+      return `
+      <div class="subquestion-item" id="sub-item-${q.id}-${subIdx}">
+        <div class="subquestion-header">
+          <span class="subquestion-title">子问题 ${subIdx + 1}</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label style="font-size:11px;color:var(--text-muted);">分值：</label>
+            <input type="number" min="0" max="100" value="${subScore}"
+              data-qid="${q.id}" data-subidx="${subIdx}"
+              oninput="updateSubScore(this)"
+              style="width:52px;background:rgba(0,20,50,0.5);border:1px solid rgba(168,85,247,0.3);border-radius:6px;color:var(--neon-purple);padding:3px 6px;font-size:12px;outline:none;" />
+            <button class="btn-remove-sub" data-qid="${q.id}" data-subidx="${subIdx}" onclick="removeSubQuestion(this)">✕ 删除</button>
+          </div>
+        </div>
+        <textarea class="form-textarea" placeholder="请输入子问题内容..."
+          data-qid="${q.id}" data-subidx="${subIdx}"
+          oninput="updateSubText(this)"
+          style="min-height:50px;font-size:13px;">${escHtml(subText)}</textarea>
+      </div>`;
+    }).join('');
+    subQuestionsHtml = `
+      <div class="subquestion-section" id="sub-section-${q.id}">
+        <div id="sub-list-${q.id}">${subsHtml}</div>
+        <button class="btn-add-sub" data-qid="${q.id}" onclick="addSubQuestion(this)">+ 添加子问题</button>
+      </div>
+    `;
+
+    let groupHeader = '';
+    if (q.parentTitle) {
+      const groupIdx = questions.findIndex(x => x.parentTitle === q.parentTitle);
+      if (groupIdx === idx) {
+        groupHeader = `<div style="font-size:15px;font-weight:700;color:var(--neon-blue);margin:20px 0 10px;padding:8px 14px;background:rgba(0,212,255,0.06);border-left:3px solid var(--neon-blue);border-radius:0 8px 8px 0;">${q.parentTitle}</div>`;
+      }
+    }
+
+    return `
+      ${groupHeader}
+      <div class="question-editor" id="qe-${q.id}">
+        <div class="q-header">
+          <div class="q-num" style="font-size:11px;min-width:32px;padding:0 4px;">${subLabel}</div>
+          <span class="q-type-badge ${typeClass}">${typeLabel}</span>
+          ${scoreLabel}
+          <button class="q-remove-btn" data-id="${q.id}" onclick="removeQuestion(this)">✕ 删除</button>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <textarea class="form-textarea" placeholder="请输入题目内容..."
+            oninput="updateQText(${q.id}, this.value)" style="min-height:70px;">${escHtml(q.text)}</textarea>
+        </div>
+        ${q.hint !== undefined ? `
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label">背景说明（选填）</label>
+          <input class="form-input" type="text" placeholder="题目背景/提示信息..."
+            value="${escHtml(q.hint)}" oninput="updateQHint(${q.id}, this.value)" style="font-size:13px;" />
+        </div>` : ''}
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" id="req-${q.id}" ${q.required?'checked':''} onchange="updateRequired(${q.id}, this.checked)"
+              style="accent-color:var(--neon-blue);width:14px;height:14px;cursor:pointer;" />
+            <label for="req-${q.id}" style="font-size:12px;color:var(--text-muted);cursor:pointer;">必填</label>
+          </div>
+          ${(q.subQuestions && q.subQuestions.length > 0) ? `
+          <!-- 有子问题时，分值在头部标签显示，这里不再显示 -->
+          ` : `
+          <div style="display:flex;align-items:center;gap:6px;">
+            <label style="font-size:12px;color:var(--text-muted);">分值：</label>
+            <input type="number" min="0" max="100" value="${q.score||0}"
+              oninput="updateQScore(${q.id}, this.value)"
+              style="width:60px;background:rgba(0,20,50,0.5);border:1px solid rgba(0,212,255,0.2);border-radius:6px;color:var(--neon-cyan);padding:4px 8px;font-size:13px;outline:none;" />
+          </div>
+          `}
+        </div>
+        ${subQuestionsHtml}
+        <div style="height:1px;background:linear-gradient(90deg,transparent,var(--border-glow),transparent);margin:16px 0;"></div>
+      </div>
+    `;
+  }).join('');
+
+  updateScoreSummary();
+}
+
+function addQuestion(type) {
+  const id = ++qIdCounter;
+  const q = { id, type: 'text', text: '', options: [], required: true, subQuestions: [] };
+  questions.push(q);
+  renderQuestions();
+}
+
+function removeQuestion(btn) {
+  const id = parseInt(btn.dataset.id);
+  if (isNaN(id)) { console.error('removeQuestion: 无法读取 data-id'); return; }
+
+  showConfirm('确定要删除这道题目吗？', () => {
+    const idx = questions.findIndex(q => q.id === id);
+    if (idx !== -1) {
+      questions.splice(idx, 1);
+    }
+    // 同步到当前模板
+    if (currentTemplate && templates[currentTemplate]) {
+      templates[currentTemplate].questions = JSON.parse(JSON.stringify(questions));
+    }
+    // 直接移除该题目的 DOM 节点，不全量重绘
+    const el = document.getElementById(`qe-${id}`);
+    if (el) {
+      // groupHeader 是 el 的前一个兄弟节点（若有）
+      const prev = el.previousElementSibling;
+      if (prev && prev.tagName !== 'DIV'.toLowerCase() && prev.style && prev.style.borderLeft) {
+        prev.remove();
+      }
+      el.remove();
+    }
+    updateScoreSummary();
+    // 如果全删完了，显示空状态
+    if (questions.length === 0) {
+      const container = document.getElementById('questions-container');
+      container.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:30px 0;">暂无题目，请添加</div>';
+    }
+  });
+}
+
+function updateQText(id, val)      { const q = questions.find(x => x.id === id); if(q) q.text = val; }
+function updateRequired(id, v)     { const q = questions.find(x => x.id === id); if(q) q.required = v; }
+function updateQHint(id, val)      { const q = questions.find(x => x.id === id); if(q) q.hint = val; }
+function updateQScore(id, val) {
+  const q = questions.find(x => x.id === id);
+  if(q) {
+    q.score = parseInt(val)||0;
+    
+    // 实时更新题目头部的分值标签
+    const qEl = document.getElementById(`qe-${id}`);
+    if (qEl) {
+      const scoreLabelEl = qEl.querySelector('.q-header .q-score-label');
+      if (scoreLabelEl) {
+        const newScore = q.score || 0;
+        if (newScore > 0) {
+          scoreLabelEl.textContent = `${newScore}分`;
+          scoreLabelEl.style.display = 'inline';
+          // 确保样式一致
+          scoreLabelEl.style.color = 'var(--neon-cyan)';
+          scoreLabelEl.style.fontSize = '11px';
+          scoreLabelEl.style.fontFamily = 'var(--font-mono)';
+          scoreLabelEl.style.border = '1px solid rgba(0,255,204,0.4)';
+          scoreLabelEl.style.padding = '2px 8px';
+          scoreLabelEl.style.borderRadius = '10px';
+        } else {
+          scoreLabelEl.textContent = '';
+          scoreLabelEl.style.display = 'none';
+        }
+      }
+    }
+    
+    updateScoreSummary();
+  }
+}
+
+// 子问题相关函数
+function addSubQuestion(btn) {
+  const qId = parseInt(btn.getAttribute('data-qid'));
+  const q = questions.find(x => x.id === qId);
+  if (!q) return;
+  if (!q.subQuestions) q.subQuestions = [];
+  
+  // 判断是否是第一个子问题
+  const isFirstSub = q.subQuestions.length === 0;
+  
+  q.subQuestions.push({ text: '', score: 0 });
+  const subIdx = q.subQuestions.length - 1;
+
+  // 如果是第一个子问题，重新渲染整个题目以隐藏分值输入框
+  if (isFirstSub) {
+    renderQuestions();
+    return;
+  }
+
+  const listEl = document.getElementById(`sub-list-${qId}`);
+  if (!listEl) { renderQuestions(); return; }
+
+  const div = document.createElement('div');
+  div.className = 'subquestion-item';
+  div.id = `sub-item-${qId}-${subIdx}`;
+  div.innerHTML = `
+    <div class="subquestion-header">
+      <span class="subquestion-title">子问题 ${subIdx + 1}</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label style="font-size:11px;color:var(--text-muted);">分值：</label>
+        <input type="number" min="0" max="100" value="0"
+          data-qid="${qId}" data-subidx="${subIdx}"
+          oninput="updateSubScore(this)"
+          style="width:52px;background:rgba(0,20,50,0.5);border:1px solid rgba(168,85,247,0.3);border-radius:6px;color:var(--neon-purple);padding:3px 6px;font-size:12px;outline:none;" />
+        <button class="btn-remove-sub" data-qid="${qId}" data-subidx="${subIdx}" onclick="removeSubQuestion(this)">✕ 删除</button>
+      </div>
+    </div>
+    <textarea class="form-textarea" placeholder="请输入子问题内容..."
+      data-qid="${qId}" data-subidx="${subIdx}"
+      oninput="updateSubText(this)"
+      style="min-height:50px;font-size:13px;"></textarea>
+  `;
+  listEl.appendChild(div);
+  updateScoreSummary();
+}
+
+function _buildSubItemHtml(qId, sub, i) {
+  const subText  = (typeof sub === 'object') ? (sub.text  || '') : sub;
+  const subScore = (typeof sub === 'object') ? (sub.score || 0)  : 0;
+  return `
+    <div class="subquestion-item" id="sub-item-${qId}-${i}">
+      <div class="subquestion-header">
+        <span class="subquestion-title">子问题 ${i + 1}</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <label style="font-size:11px;color:var(--text-muted);">分值：</label>
+          <input type="number" min="0" max="100" value="${subScore}"
+            data-qid="${qId}" data-subidx="${i}"
+            oninput="updateSubScore(this)"
+            style="width:52px;background:rgba(0,20,50,0.5);border:1px solid rgba(168,85,247,0.3);border-radius:6px;color:var(--neon-purple);padding:3px 6px;font-size:12px;outline:none;" />
+          <button class="btn-remove-sub" data-qid="${qId}" data-subidx="${i}" onclick="removeSubQuestion(this)">✕ 删除</button>
+        </div>
+      </div>
+      <textarea class="form-textarea" placeholder="请输入子问题内容..."
+        data-qid="${qId}" data-subidx="${i}"
+        oninput="updateSubText(this)"
+        style="min-height:50px;font-size:13px;">${escHtml(subText)}</textarea>
+    </div>`;
+}
+
+function removeSubQuestion(btn) {
+  const qId = parseInt(btn.getAttribute('data-qid'));
+  const subIdx = parseInt(btn.getAttribute('data-subidx'));
+  const q = questions.find(x => x.id === qId);
+  if (!q || !q.subQuestions) return;
+  q.subQuestions.splice(subIdx, 1);
+  
+  // 如果删除后没有子问题了，重新渲染整个题目以恢复分值输入框
+  if (q.subQuestions.length === 0) {
+    renderQuestions();
+    updateScoreSummary();
+    return;
+  }
+  
+  const listEl = document.getElementById(`sub-list-${qId}`);
+  if (!listEl) { renderQuestions(); return; }
+  listEl.innerHTML = q.subQuestions.map((sub, i) => _buildSubItemHtml(qId, sub, i)).join('');
+  updateScoreSummary();
+}
+
+// 更新子问题文本（通过 data 属性）
+function updateSubText(el) {
+  const qId    = parseInt(el.getAttribute('data-qid'));
+  const subIdx = parseInt(el.getAttribute('data-subidx'));
+  const q = questions.find(x => x.id === qId);
+  if (!q || !q.subQuestions) return;
+  if (typeof q.subQuestions[subIdx] !== 'object') {
+    q.subQuestions[subIdx] = { text: '', score: 0 };
+  }
+  q.subQuestions[subIdx].text = el.value;
+}
+
+// 更新子问题分值（通过 data 属性）
+function updateSubScore(el) {
+  const qId    = parseInt(el.getAttribute('data-qid'));
+  const subIdx = parseInt(el.getAttribute('data-subidx'));
+  const q = questions.find(x => x.id === qId);
+  if (!q || !q.subQuestions) return;
+  if (typeof q.subQuestions[subIdx] !== 'object') {
+    q.subQuestions[subIdx] = { text: '', score: 0 };
+  }
+  q.subQuestions[subIdx].score = parseInt(el.value) || 0;
+  
+  // 实时更新父题目的分值显示（子问题总和）- 只更新头部标签
+  const qEl = document.getElementById(`qe-${qId}`);
+  if (qEl) {
+    const scoreLabelEl = qEl.querySelector('.q-header .q-score-label');
+    if (scoreLabelEl) {
+      let subTotal = 0;
+      q.subQuestions.forEach(sub => {
+        subTotal += (typeof sub === 'object' ? (sub.score || 0) : 0);
+      });
+      if (subTotal > 0) {
+        scoreLabelEl.textContent = `${subTotal}分`;
+        scoreLabelEl.style.display = 'inline';
+        // 确保样式一致
+        scoreLabelEl.style.color = 'var(--neon-cyan)';
+        scoreLabelEl.style.fontSize = '11px';
+        scoreLabelEl.style.fontFamily = 'var(--font-mono)';
+        scoreLabelEl.style.border = '1px solid rgba(0,255,204,0.4)';
+        scoreLabelEl.style.padding = '2px 8px';
+        scoreLabelEl.style.borderRadius = '10px';
+      } else {
+        scoreLabelEl.textContent = '';
+        scoreLabelEl.style.display = 'none';
+      }
+    }
+  }
+  
+  updateScoreSummary();
+}
+
+// 兼容旧接口（保留，以防其他地方调用）
+function updateSubQuestion(qId, subIdx, val) {
+  const q = questions.find(x => x.id === qId);
+  if (!q || !q.subQuestions) return;
+  if (typeof q.subQuestions[subIdx] !== 'object') {
+    q.subQuestions[subIdx] = { text: val, score: 0 };
+  } else {
+    q.subQuestions[subIdx].text = val;
+  }
+}
+
+// 总分校验
+function updateScoreSummary() {
+  const summaryEl = document.getElementById('score-summary');
+  if (!summaryEl) return;
+
+  let totalScore = 0;
+  questions.forEach(q => {
+    if (q.type === 'text' && q.subQuestions && q.subQuestions.length > 0) {
+      // 简答题有子问题：累加各子问题分值
+      q.subQuestions.forEach(sub => {
+        totalScore += (typeof sub === 'object' ? (sub.score || 0) : 0);
+      });
+    } else {
+      totalScore += (q.score || 0);
+    }
+  });
+  const is100 = totalScore === 100;
+
+  summaryEl.innerHTML = `
+    <span>当前总分：</span>
+    <span class="total ${is100 ? 'ok' : 'warning'}">${totalScore} 分</span>
+    <span style="color:${is100 ? 'var(--neon-cyan)' : 'var(--error)'};font-size:12px;">
+      ${is100 ? '✓ 总分正确' : '⚠ 请确保总分达到100分'}
+    </span>
+  `;
+  summaryEl.className = `score-summary ${is100 ? 'ok' : 'warning'}`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// 从编辑框保存试卷说明
+function saveTemplateDescFromEl(templateId) {
+  const desc = document.getElementById(`tpl-desc-${templateId}`).value.trim();
+  templates[templateId].quizDesc = desc;
+  saveTemplateToFirebase(templateId);
+  
+  // 同步到所有关联的手机号
+  const template = templates[templateId];
+  const phones = template.phones || [];
+  const updates = {};
+  
+  phones.forEach(phone => {
+    updates[`quiz_data/${phone}/quizDesc`] = desc;
+    updates[`quiz_data/${phone}/updatedAt`] = firebase.database.ServerValue.TIMESTAMP;
+  });
+  
+  if (phones.length > 0) {
+    db.ref().update(updates).catch(err => console.error('同步试卷说明失败:', err));
+  }
+}
+
+// 添加手机号到指定模板（支持多个手机号用逗号分隔）
+function addPhoneToTemplate(templateId) {
+  const input = document.getElementById(`tpl-phone-${templateId}`);
+  const inputValue = input.value.trim();
+  
+  if (!inputValue) {
+    showToast('请输入手机号', 'error');
+    return;
+  }
+  
+  // 支持逗号、分号、空格分隔多个手机号
+  const phones = inputValue.split(/[,;，；\s]+/).filter(p => p.trim());
+  const validPhones = [];
+  const invalidPhones = [];
+  const duplicatePhones = [];
+  const usedPhones = [];
+  
+  const template = templates[templateId];
+  if (!template.phones) template.phones = [];
+  
+  phones.forEach(phone => {
+    const trimmedPhone = phone.trim();
+    if (!trimmedPhone) return;
+    
+    if (!/^1[3-9]\d{9}$/.test(trimmedPhone)) {
+      invalidPhones.push(trimmedPhone);
+    } else if (template.phones.includes(trimmedPhone)) {
+      duplicatePhones.push(trimmedPhone);
+    } else if (phoneToTemplate[trimmedPhone] && phoneToTemplate[trimmedPhone] !== templateId) {
+      usedPhones.push(trimmedPhone);
+    } else {
+      validPhones.push(trimmedPhone);
+    }
+  });
+  
+  if (validPhones.length === 0) {
+    let msg = '';
+    if (invalidPhones.length > 0) msg = `格式错误: ${invalidPhones.join(', ')}`;
+    else if (duplicatePhones.length > 0) msg = `已存在: ${duplicatePhones.join(', ')}`;
+    else if (usedPhones.length > 0) msg = `已被其他模板使用: ${usedPhones.join(', ')}`;
+    else msg = '请输入正确的手机号';
+    showToast(msg, 'error');
+    return;
+  }
+  
+  // 添加所有有效手机号
+  validPhones.forEach(phone => {
+    template.phones.push(phone);
+    phoneToTemplate[phone] = templateId;
+  });
+  
+  // 保存到 Firebase
+  const updates = {};
+  updates[`templates/${templateId}/phones`] = template.phones;
+  validPhones.forEach(phone => {
+    updates[`phone_to_template/${phone}`] = templateId;
+    updates[`quiz_data/${phone}`] = {
+      templateId: templateId,
+      quizTitle: template.name,
+      quizDesc: template.quizDesc || '',
+      timeLimit: template.timeLimit || 90,
+      questions: template.questions || [],
+      recipients: template.recipients || []
+    };
+  });
+  
+  db.ref().update(updates).then(() => {
+    input.value = '';
+    renderTemplateList();
+    
+    let successMsg = `成功添加 ${validPhones.length} 个手机号`;
+    if (invalidPhones.length > 0) successMsg += `，${invalidPhones.length} 个格式错误`;
+    if (duplicatePhones.length > 0) successMsg += `，${duplicatePhones.length} 个已存在`;
+    if (usedPhones.length > 0) successMsg += `，${usedPhones.length} 个被其他模板使用`;
+    showToast(successMsg, 'success');
+  }).catch(err => {
+    console.error('添加手机号失败:', err);
+    // 回滚
+    validPhones.forEach(phone => {
+      const idx = template.phones.indexOf(phone);
+      if (idx > -1) template.phones.splice(idx, 1);
+      delete phoneToTemplate[phone];
+    });
+    showToast('添加失败，请重试', 'error');
+  });
+}
+
+// 从列表删除手机号
+function deletePhoneFromList(templateId, phone) {
+  const template = templates[templateId];
+  const idx = template.phones.indexOf(phone);
+  if (idx === -1) return;
+  
+  template.phones.splice(idx, 1);
+  delete phoneToTemplate[phone];
+  
+  const updates = {};
+  updates[`templates/${templateId}/phones`] = template.phones;
+  updates[`phone_to_template/${phone}`] = null;
+  updates[`quiz_data/${phone}`] = null;
+  
+  db.ref().update(updates).then(() => {
+    renderTemplateList();
+    showToast('已删除', 'success');
+  }).catch(err => {
+    console.error('删除失败:', err);
+    showToast('删除失败，请重试', 'error');
+  });
+}
+
+// 添加收件人到指定模板（支持多个邮箱用逗号分隔）
+function addRecipientToTemplate(templateId) {
+  const input = document.getElementById(`tpl-recipient-${templateId}`);
+  const inputValue = input.value.trim();
+  
+  if (!inputValue) {
+    showToast('请输入邮箱地址', 'error');
+    return;
+  }
+  
+  // 支持逗号、分号、空格分隔多个邮箱
+  const emails = inputValue.split(/[,;，；\s]+/).filter(e => e.trim());
+  const validEmails = [];
+  const invalidEmails = [];
+  const duplicateEmails = [];
+  
+  const template = templates[templateId];
+  if (!template.recipients) template.recipients = [];
+  
+  emails.forEach(email => {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) return;
+    
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      invalidEmails.push(trimmedEmail);
+    } else if (template.recipients.includes(trimmedEmail)) {
+      duplicateEmails.push(trimmedEmail);
+    } else {
+      validEmails.push(trimmedEmail);
+    }
+  });
+  
+  if (validEmails.length === 0) {
+    let msg = '';
+    if (invalidEmails.length > 0) msg = `邮箱格式错误: ${invalidEmails.join(', ')}`;
+    else if (duplicateEmails.length > 0) msg = `邮箱已存在: ${duplicateEmails.join(', ')}`;
+    else msg = '请输入正确的邮箱地址';
+    showToast(msg, 'error');
+    return;
+  }
+  
+  // 添加所有有效邮箱
+  validEmails.forEach(email => template.recipients.push(email));
+  
+  const updates = {};
+  updates[`templates/${templateId}/recipients`] = template.recipients;
+  (template.phones || []).forEach(phone => {
+    updates[`quiz_data/${phone}/recipients`] = template.recipients;
+  });
+  
+  db.ref().update(updates).then(() => {
+    input.value = '';
+    renderTemplateList();
+    
+    let successMsg = `成功添加 ${validEmails.length} 个收件人`;
+    if (invalidEmails.length > 0) successMsg += `，${invalidEmails.length} 个格式错误`;
+    if (duplicateEmails.length > 0) successMsg += `，${duplicateEmails.length} 个已存在`;
+    showToast(successMsg, 'success');
+  }).catch(err => {
+    console.error('添加收件人失败:', err);
+    // 回滚
+    validEmails.forEach(() => template.recipients.pop());
+    showToast('添加失败，请重试', 'error');
+  });
+}
+
+// 从列表删除收件人
+function deleteRecipientFromList(templateId, idx) {
+  const template = templates[templateId];
+  if (!template.recipients || !template.recipients[idx]) return;
+  
+  template.recipients.splice(idx, 1);
+  
+  const updates = {};
+  updates[`templates/${templateId}/recipients`] = template.recipients;
+  (template.phones || []).forEach(phone => {
+    updates[`quiz_data/${phone}/recipients`] = template.recipients;
+  });
+  
+  db.ref().update(updates).then(() => {
+    renderTemplateList();
+    showToast('已删除', 'success');
+  }).catch(err => {
+    console.error('删除收件人失败:', err);
+    showToast('删除失败，请重试', 'error');
+  });
+}
+
+function saveQuestions() {
+  if (!currentTemplate) {
+    showToast('请先选择试卷模板', 'error');
+    return;
+  }
+
+  // 校验总分是否为100分
+  let totalScore = 0;
+  questions.forEach(q => {
+    if (q.type === 'text' && q.subQuestions && q.subQuestions.length > 0) {
+      q.subQuestions.forEach(sub => {
+        totalScore += (typeof sub === 'object' ? (sub.score || 0) : 0);
+      });
+    } else {
+      totalScore += (q.score || 0);
+    }
+  });
+  if (totalScore !== 100) {
+    showToast(`当前总分为 ${totalScore} 分，请确保总分为 100 分`, 'error');
+    return;
+  }
+
+  // 更新模板数据
+  templates[currentTemplate].questions = questions;
+  // quizTitle 使用模板名称，quizDesc 已在 saveTemplateDesc 中保存
+  templates[currentTemplate].quizTitle = templates[currentTemplate].name || '算法笔试题';
+  saveTemplateToFirebase(currentTemplate);
+
+  // 同步更新该模板下所有手机号的题目数据
+  const template = templates[currentTemplate];
+  const phones = template.phones || [];
+  const updates = {};
+
+  phones.forEach(phone => {
+    updates[`quiz_data/${phone}/questions`] = questions;
+    updates[`quiz_data/${phone}/quizTitle`] = template.quizTitle;
+    updates[`quiz_data/${phone}/quizDesc`] = template.quizDesc;
+    updates[`quiz_data/${phone}/timeLimit`] = template.timeLimit;
+    updates[`quiz_data/${phone}/recipients`] = template.recipients || [];
+    updates[`quiz_data/${phone}/updatedAt`] = firebase.database.ServerValue.TIMESTAMP;
+  });
+
+  if (phones.length > 0) {
+    db.ref().update(updates).then(() => {
+      showToast(`题目已保存到云端！已同步到 ${phones.length} 个手机号`, 'success');
+    }).catch(err => {
+      console.error('同步到手机号失败:', err);
+      showToast('模板保存成功，但同步到手机号失败', 'error');
+    });
+  } else {
+    showToast('题目已保存到模板！', 'success');
+  }
+}
+
+// ======================================================
+// Toast
+// ======================================================
+function showToast(msg, type='success', duration=3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => { t.className = 'toast'; }, duration);
+}
+
+// ======================================================
+// 粒子背景
+// ======================================================
+(function initParticles() {
+  const canvas = document.getElementById('particle-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [];
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const COLORS = ['#00d4ff','#00ffcc','#a855f7','#0066ff'];
+
+  for (let i = 0; i < 80; i++) {
+    particles.push({
+      x: Math.random() * 1920,
+      y: Math.random() * 1080,
+      r: Math.random() * 1.5 + 0.4,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      alpha: Math.random() * 0.6 + 0.2
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 130) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(0,212,255,${0.12 * (1 - dist/130)})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+
+    particles.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.alpha;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = W;
+      if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H;
+      if (p.y > H) p.y = 0;
+    });
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// 启动
+init();
+
+// ======================================================
+// 浮动导航功能
+// ======================================================
+const SCROLL_DURATION = 800; // 平滑滚动时长 800ms
+
+function smoothScrollTo(targetY, duration = SCROLL_DURATION) {
+  const startY = window.scrollY;
+  const diff = targetY - startY;
+  const startTime = performance.now();
+
+  function step(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    // 使用 easeInOutCubic 缓动函数
+    const ease = progress < 0.5
+      ? 4 * progress * progress * progress
+      : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+    window.scrollTo(0, startY + diff * ease);
+
+    if (progress < 1) {
+      requestAnimationFrame(step);
+    }
+  }
+
+  requestAnimationFrame(step);
+}
+
+function scrollToTop() {
+  smoothScrollTo(0);
+}
+
+function scrollToBottom() {
+  smoothScrollTo(document.body.scrollHeight - window.innerHeight);
+}
+
+// 智能显示控制
+(function initFloatNav() {
+  const floatNav = document.querySelector('.float-nav');
+  const topBtn = floatNav?.querySelector('.float-nav-btn:first-child');
+  const bottomBtn = floatNav?.querySelector('.float-nav-btn:last-child');
+
+  if (!floatNav || !topBtn || !bottomBtn) return;
+
+  let lastScrollY = 0;
+  const threshold = 50; // 滚动阈值
+
+  function updateFloatNav() {
+    const scrollY = window.scrollY;
+    const windowHeight = window.innerHeight;
+    const documentHeight = document.body.scrollHeight;
+    const isScrollable = documentHeight > windowHeight + threshold;
+
+    // 是否显示整个导航容器
+    if (isScrollable) {
+      floatNav.classList.add('show');
+    } else {
+      floatNav.classList.remove('show');
+      return;
+    }
+
+    // 顶部检测（滚动小于 100px 视为顶部）
+    const isAtTop = scrollY < 100;
+    topBtn.classList.toggle('hidden', isAtTop);
+
+    // 底部检测（滚动位置接近文档底部）
+    const isAtBottom = scrollY + windowHeight >= documentHeight - 100;
+    bottomBtn.classList.toggle('hidden', isAtBottom);
+
+    lastScrollY = scrollY;
+  }
+
+  // 初始检查
+  updateFloatNav();
+
+  // 监听滚动
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        updateFloatNav();
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }, { passive: true });
+
+  // 监听窗口大小变化
+  window.addEventListener('resize', updateFloatNav);
+})();
+</script>
+</body>
+</html>
