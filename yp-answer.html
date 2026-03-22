@@ -2,13 +2,33 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
   <title>一起安笔试</title>
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
   <!-- EmailJS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <!-- 微信兼容：动态加载 polyfill -->
+  <script>
+    // 检测微信环境
+    window.isWechat = /MicroMessenger/i.test(navigator.userAgent);
+    if (window.isWechat) {
+      console.log('检测到微信浏览器');
+      // 微信需要动态加载 polyfill
+      document.write('<script src="https://cdn.polyfill.io/v3/polyfill.min.js?features=es6,fetch,promise"><\/script>');
+    }
+    // 页面加载完成后显示微信提示
+    window.addEventListener('DOMContentLoaded', function() {
+      if (window.isWechat) {
+        const wechatTip = document.getElementById('wechat-tip');
+        if (wechatTip) {
+          wechatTip.classList.add('show');
+        }
+      }
+    });
+  </script>
   <style>
     /* ===================== 全局变量 & Reset ===================== */
     :root {
@@ -844,6 +864,50 @@
       height: 20px;
       fill: currentColor;
     }
+    /* 微信浏览器提示 */
+    .wechat-tip {
+      display: none;
+      background: linear-gradient(135deg, rgba(255, 193, 7, 0.15), rgba(255, 152, 0, 0.1));
+      border: 1px solid rgba(255, 193, 7, 0.4);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      color: #ffc107;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .wechat-tip.show {
+      display: block;
+    }
+    .wechat-tip-icon {
+      font-size: 20px;
+      margin-right: 8px;
+    }
+    .wechat-tip-title {
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+    }
+    .wechat-tip-step {
+      display: flex;
+      align-items: center;
+      margin: 8px 0;
+      padding-left: 28px;
+    }
+    .wechat-tip-step-num {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(255, 193, 7, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      margin-right: 10px;
+      flex-shrink: 0;
+    }
+
     /* 小屏幕适配 - 缩小尺寸紧贴边缘 */
     @media (max-width: 960px) {
       .float-nav {
@@ -878,6 +942,25 @@
         <div class="logo-text">一起安笔试</div>
       </div>
       <div class="header-subtitle">一起安（杭州）科技有限公司</div>
+    </div>
+
+    <!-- 微信浏览器提示 -->
+    <div class="wechat-tip" id="wechat-tip">
+      <div class="wechat-tip-title">
+        <span class="wechat-tip-icon">⚠️</span>
+        <span>检测到您正在使用微信内置浏览器</span>
+      </div>
+      <div style="padding-left: 28px; opacity: 0.9;">
+        为保证答题体验，请按以下步骤用系统浏览器打开：
+      </div>
+      <div class="wechat-tip-step">
+        <span class="wechat-tip-step-num">1</span>
+        <span>点击右上角 <strong style="color: #fff;">···</strong> 菜单按钮</span>
+      </div>
+      <div class="wechat-tip-step">
+        <span class="wechat-tip-step-num">2</span>
+        <span>选择 <strong style="color: #fff;">在浏览器打开</strong> 或 <strong style="color: #fff;">在Safari中打开</strong></span>
+      </div>
     </div>
 
     <div class="card">
@@ -1029,8 +1112,29 @@ const firebaseConfig = {
 };
 
 // 初始化 Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+let db;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+  console.log('Firebase 初始化成功');
+} catch (initErr) {
+  console.error('Firebase 初始化失败:', initErr);
+  // 微信环境可能需要延迟初始化
+  if (window.isWechat) {
+    console.log('微信环境，尝试延迟初始化...');
+    setTimeout(() => {
+      try {
+        if (!firebase.apps.length) {
+          firebase.initializeApp(firebaseConfig);
+        }
+        db = firebase.database();
+        console.log('Firebase 延迟初始化成功');
+      } catch (retryErr) {
+        console.error('Firebase 延迟初始化仍失败:', retryErr);
+      }
+    }, 500);
+  }
+}
 
 // ======================================================
 // 数据模型
@@ -1254,6 +1358,29 @@ window.loginQuiz = async function() {
   const phone = document.getElementById('login-phone').value.trim();
   console.log('姓名:', name, '手机号:', phone);
   
+  // 调试信息：检查 Firebase 状态
+  console.log('Firebase 初始化状态:', typeof firebase !== 'undefined' ? '已加载' : '未加载');
+  console.log('数据库引用:', db ? '已创建' : '未创建');
+  console.log('是否微信环境:', window.isWechat);
+
+  // 微信环境：确保数据库已初始化
+  if (!db && window.isWechat) {
+    console.log('微信环境重新初始化数据库...');
+    try {
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+      db = firebase.database();
+    } catch (e) {
+      console.error('微信环境重新初始化失败:', e);
+    }
+  }
+
+  if (!db) {
+    showToast('系统初始化失败，请使用系统浏览器打开', 'error');
+    return;
+  }
+
   if (!name) {
     console.log('姓名未填写');
     showToast('请填写您的姓名', 'error');
@@ -1273,10 +1400,12 @@ window.loginQuiz = async function() {
     // 从 Firebase 加载该手机号对应的题目
     document.getElementById('loading-sub-text').textContent = '正在加载题目配置...';
     console.log('正在从 Firebase 加载数据...');
+    console.log('请求路径:', 'quiz_data/' + phone);
     
     const snapshot = await db.ref('quiz_data/' + phone).once('value');
     let phoneData = snapshot.val();
     console.log('加载数据结果:', phoneData);
+    console.log('数据是否存在:', phoneData !== null);
     
     if (!phoneData) {
       console.log('未找到题目配置');
