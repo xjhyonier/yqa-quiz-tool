@@ -456,10 +456,13 @@
       font-size: 14px;
       padding: 10px 14px;
       outline: none;
-      resize: vertical;
-      min-height: 80px;
+      resize: none;
+      min-height: 42px;
+      height: auto;
+      overflow: hidden;
       transition: border-color 0.3s;
       font-family: inherit;
+      box-sizing: border-box;
     }
     .form-textarea:focus {
       border-color: var(--neon-blue);
@@ -1635,10 +1638,25 @@ function renderTemplateList() {
       
       <!-- 展开的设置区域 -->
       <div style="display:${isActive ? 'block' : 'none'};padding:16px;border-top:1px solid rgba(0,212,255,0.1);">
+        <!-- 考试时间 -->
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px;">⏱ 考试时间（分钟）</label>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <input class="form-input compact" id="tpl-timelimit-${templateId}" type="number" min="1" max="360" value="${template.timeLimit || 90}" placeholder="90" style="width:100px;flex:none;" onblur="saveTemplateTimeLimitFromEl('${templateId}')" />
+            <span style="font-size:12px;color:var(--text-muted);">分钟（答题页倒计时将使用此时间）</span>
+          </div>
+        </div>
+
+        <!-- 考试说明 -->
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px;">📋 考试说明（展示在答题页顶部）</label>
+          <textarea class="form-textarea" id="tpl-notice-${templateId}" placeholder="填写考试说明，将显示在答题页最上方，供考生阅读..." onblur="saveTemplateNoticeFromEl('${templateId}')" oninput="autoResize(this)" style="min-height:42px;font-size:13px;padding:10px 12px;">${escHtml(template.quizNotice || '')}</textarea>
+        </div>
+
         <!-- 试卷备注 -->
         <div style="margin-bottom:16px;">
           <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px;">📝 试卷备注（仅管理员可见）</label>
-          <textarea class="form-textarea" id="tpl-desc-${templateId}" placeholder="填写备注信息..." onblur="saveTemplateDescFromEl('${templateId}')" style="min-height:50px;font-size:13px;padding:10px 12px;">${escHtml(template.quizDesc || '')}</textarea>
+          <textarea class="form-textarea" id="tpl-desc-${templateId}" placeholder="填写备注信息..." onblur="saveTemplateDescFromEl('${templateId}')" oninput="autoResize(this)" style="min-height:42px;font-size:13px;padding:10px 12px;">${escHtml(template.quizDesc || '')}</textarea>
         </div>
         
         <!-- 手机号管理 -->
@@ -1690,6 +1708,8 @@ function renderTemplateList() {
     </div>
     `;
   }).join('');
+  // 渲染完成后自动撑开所有 textarea 高度
+  requestAnimationFrame(autoResizeAll);
 }
 
 function addTemplate() {
@@ -1717,6 +1737,7 @@ function addTemplate() {
     questions: [],
     quizTitle: '算法笔试题',
     quizDesc: '',
+    quizNotice: '',
     timeLimit: 90,
     phones: [],
     recipients: []
@@ -2112,8 +2133,8 @@ function renderQuestions() {
         </div>
         <textarea class="form-textarea" placeholder="请输入子问题内容..."
           data-qid="${q.id}" data-subidx="${subIdx}"
-          oninput="updateSubText(this)"
-          style="min-height:50px;font-size:13px;">${escHtml(subText)}</textarea>
+          oninput="updateSubText(this);autoResize(this);"
+          style="min-height:42px;font-size:13px;">${escHtml(subText)}</textarea>
       </div>`;
     }).join('');
     subQuestionsHtml = `
@@ -2142,7 +2163,7 @@ function renderQuestions() {
         </div>
         <div class="form-group" style="margin-bottom:12px;">
           <textarea class="form-textarea" placeholder="请输入题目内容..."
-            oninput="updateQText(${q.id}, this.value)" style="min-height:70px;">${escHtml(q.text)}</textarea>
+            oninput="updateQText(${q.id}, this.value);autoResize(this);" style="min-height:42px;">${escHtml(q.text)}</textarea>
         </div>
         ${q.hint !== undefined ? `
         <div class="form-group" style="margin-bottom:12px;">
@@ -2174,6 +2195,8 @@ function renderQuestions() {
   }).join('');
 
   updateScoreSummary();
+  // 渲染完成后自动撑开所有 textarea 高度
+  requestAnimationFrame(autoResizeAll);
 }
 
 function addQuestion(type) {
@@ -2289,8 +2312,8 @@ function addSubQuestion(btn) {
     </div>
     <textarea class="form-textarea" placeholder="请输入子问题内容..."
       data-qid="${qId}" data-subidx="${subIdx}"
-      oninput="updateSubText(this)"
-      style="min-height:50px;font-size:13px;"></textarea>
+      oninput="updateSubText(this);autoResize(this);"
+      style="min-height:42px;font-size:13px;"></textarea>
   `;
   listEl.appendChild(div);
   updateScoreSummary();
@@ -2314,8 +2337,8 @@ function _buildSubItemHtml(qId, sub, i) {
       </div>
       <textarea class="form-textarea" placeholder="请输入子问题内容..."
         data-qid="${qId}" data-subidx="${i}"
-        oninput="updateSubText(this)"
-        style="min-height:50px;font-size:13px;">${escHtml(subText)}</textarea>
+        oninput="updateSubText(this);autoResize(this);"
+        style="min-height:42px;font-size:13px;">${escHtml(subText)}</textarea>
     </div>`;
 }
 
@@ -2455,6 +2478,58 @@ function saveTemplateDescFromEl(templateId) {
   }
 }
 
+// 从编辑框保存考试时间
+function saveTemplateTimeLimitFromEl(templateId) {
+  const el = document.getElementById(`tpl-timelimit-${templateId}`);
+  const val = parseInt(el.value) || 90;
+  // 范围限制
+  const clamped = Math.min(360, Math.max(1, val));
+  el.value = clamped;
+  templates[templateId].timeLimit = clamped;
+  saveTemplateToFirebase(templateId);
+
+  // 同步到所有关联的手机号
+  const template = templates[templateId];
+  const phones = template.phones || [];
+  const updates = {};
+
+  phones.forEach(phone => {
+    updates[`quiz_data/${phone}/timeLimit`] = clamped;
+    updates[`quiz_data/${phone}/updatedAt`] = firebase.database.ServerValue.TIMESTAMP;
+  });
+
+  if (phones.length > 0) {
+    db.ref().update(updates).then(() => showToast('考试时间已保存', 'success'))
+      .catch(err => console.error('同步考试时间失败:', err));
+  } else {
+    showToast('考试时间已保存', 'success');
+  }
+}
+
+// 从编辑框保存考试说明
+function saveTemplateNoticeFromEl(templateId) {
+  const notice = document.getElementById(`tpl-notice-${templateId}`).value.trim();
+  templates[templateId].quizNotice = notice;
+  saveTemplateToFirebase(templateId);
+
+  // 同步到所有关联的手机号
+  const template = templates[templateId];
+  const phones = template.phones || [];
+  const updates = {};
+
+  phones.forEach(phone => {
+    updates[`quiz_data/${phone}/quizNotice`] = notice;
+    updates[`quiz_data/${phone}/updatedAt`] = firebase.database.ServerValue.TIMESTAMP;
+  });
+
+  if (phones.length > 0) {
+    db.ref().update(updates).then(() => showToast('考试说明已保存', 'success'))
+      .catch(err => console.error('同步考试说明失败:', err));
+  } else {
+    showToast('考试说明已保存', 'success');
+  }
+}
+
 // 添加手机号到指定模板（支持多个手机号用逗号分隔）
 function addPhoneToTemplate(templateId) {
   const input = document.getElementById(`tpl-phone-${templateId}`);
@@ -2515,6 +2590,7 @@ function addPhoneToTemplate(templateId) {
       templateId: templateId,
       quizTitle: template.name,
       quizDesc: template.quizDesc || '',
+      quizNotice: template.quizNotice || '',
       timeLimit: template.timeLimit || 90,
       questions: template.questions || [],
       recipients: template.recipients || []
@@ -2752,6 +2828,7 @@ function saveQuestions() {
     updates[`quiz_data/${phone}/questions`] = questions;
     updates[`quiz_data/${phone}/quizTitle`] = template.quizTitle;
     updates[`quiz_data/${phone}/quizDesc`] = template.quizDesc;
+    updates[`quiz_data/${phone}/quizNotice`] = template.quizNotice || '';
     updates[`quiz_data/${phone}/timeLimit`] = template.timeLimit;
     updates[`quiz_data/${phone}/recipients`] = template.recipients || [];
     updates[`quiz_data/${phone}/updatedAt`] = firebase.database.ServerValue.TIMESTAMP;
@@ -2771,6 +2848,17 @@ function saveQuestions() {
 
 // ======================================================
 // Toast
+// ======================================================
+// textarea 自动高度
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+// 对页面所有 .form-textarea 执行一次自适应
+function autoResizeAll() {
+  document.querySelectorAll('.form-textarea').forEach(el => autoResize(el));
+}
+
 // ======================================================
 function showToast(msg, type='success', duration=3000) {
   const t = document.getElementById('toast');

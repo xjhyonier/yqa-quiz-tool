@@ -987,7 +987,7 @@
           </div>
           <div style="display:flex;align-items:flex-start;gap:6px;">
             <span style="color:var(--neon-cyan);margin-top:2px;">②</span>
-            <span>考试限时 <strong style="color:var(--neon-cyan);">90 分钟</strong>，倒计时结束将自动提交</span>
+            <span>考试限定时间，倒计时结束将自动提交</span>
           </div>
           <div style="display:flex;align-items:flex-start;gap:6px;">
             <span style="color:var(--neon-cyan);margin-top:2px;">③</span>
@@ -1022,6 +1022,15 @@
     <div class="quiz-header">
       <div class="quiz-title" id="display-quiz-title">答题中...</div>
       <div class="quiz-timer" id="timer-display" style="display:none">00:00</div>
+    </div>
+
+    <!-- 考试说明（由管理员设置，展示在最顶部） -->
+    <div id="quiz-notice-display" style="display:none;margin-bottom:20px;padding:18px 20px;background:linear-gradient(135deg,rgba(0,212,255,0.07),rgba(0,255,204,0.04));border:1px solid rgba(0,212,255,0.3);border-radius:14px;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--neon-blue),var(--neon-cyan));opacity:0.7;"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;color:var(--neon-blue);font-weight:700;font-size:15px;">
+        <span style="font-size:18px;">📋</span> 考试说明
+      </div>
+      <div id="quiz-notice-text" style="font-size:14px;color:var(--text-primary);line-height:1.85;white-space:pre-wrap;"></div>
     </div>
 
     <div id="quiz-desc-display" style="margin-bottom:20px;padding:14px 18px;background:rgba(0,212,255,0.05);border-left:3px solid rgba(0,212,255,0.4);border-radius:0 10px 10px 0;color:var(--text-muted);font-size:14px;line-height:1.7;display:none;"></div>
@@ -1432,6 +1441,7 @@ window.loginQuiz = async function() {
               ...phoneData,
               quizTitle: templateData.quizTitle || templateData.name || '一起安笔试',
               quizDesc: templateData.quizDesc || '',
+              quizNotice: templateData.quizNotice || '',
               timeLimit: templateData.timeLimit || 90,
               questions: templateData.questions || [],
               recipients: templateData.recipients || [],
@@ -1441,6 +1451,7 @@ window.loginQuiz = async function() {
             await db.ref('quiz_data/' + phone).update({
               quizTitle: phoneData.quizTitle,
               quizDesc: phoneData.quizDesc,
+              quizNotice: phoneData.quizNotice,
               timeLimit: phoneData.timeLimit,
               questions: phoneData.questions,
               recipients: phoneData.recipients,
@@ -1498,6 +1509,16 @@ window.loginQuiz = async function() {
 
     document.getElementById('display-quiz-title').textContent = quizTitle;
     console.log('试卷标题设置为:', quizTitle);
+
+    // 显示考试说明（如有）
+    const quizNotice = phoneData.quizNotice || '';
+    const noticeEl = document.getElementById('quiz-notice-display');
+    if (quizNotice && noticeEl) {
+      document.getElementById('quiz-notice-text').textContent = quizNotice;
+      noticeEl.style.display = 'block';
+    } else if (noticeEl) {
+      noticeEl.style.display = 'none';
+    }
     
     // 动态生成试卷信息（几题、几分）
     const quizInfo = buildQuizInfo(questions);
