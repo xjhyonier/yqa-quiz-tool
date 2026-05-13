@@ -1877,14 +1877,40 @@ window.submitQuiz = function(forced = false) {
     `;
   }).join('');
 
-  // 发送邮件
-  sendEmail(currentName, '', phone, title, finalAnswers);
+  // ── 将完整答卷存入 Firebase submissions ──
+  const now0 = new Date();
+  const pad0 = n => String(n).padStart(2, '0');
+  const submitTimeStr = `${now0.getFullYear()}-${pad0(now0.getMonth()+1)}-${pad0(now0.getDate())} ${pad0(now0.getHours())}:${pad0(now0.getMinutes())}:${pad0(now0.getSeconds())}`;
+  const usedSec = limitSeconds > 0 ? limitSeconds - timerSeconds : 0;
+  const submissionId = `${phone}_${Date.now()}`;
+
+  const submissionData = {
+    submissionId,
+    phone,
+    name: currentName || phone,
+    quizTitle: title,
+    submitTime: submitTimeStr,
+    startTime: quizStartTime || '',
+    usedSeconds: usedSec,
+    totalScore: calcTotalScore(),
+    answers: finalAnswers
+  };
+
+  try {
+    await db.ref('submissions/' + submissionId).set(submissionData);
+    console.log('答卷已存入 Firebase:', submissionId);
+  } catch(e) {
+    console.error('答卷存储失败:', e);
+  }
+
+  // 发送邮件（传入 submissionId 供提示链接使用）
+  sendEmail(currentName, '', phone, title, finalAnswers, submissionId, submitTimeStr, usedSec);
 };
 
 // ======================================================
 // 发送邮件（EmailJS）
 // ======================================================
-window.sendEmail = async function(name, org, phone, title, answers) {
+window.sendEmail = async function(name, org, phone, title, answers, submissionId, submitTimeStr, usedSec) {
   const statusEl = document.getElementById('email-status');
 
   console.log('sendEmail 配置检查:', {
@@ -1902,78 +1928,55 @@ window.sendEmail = async function(name, org, phone, title, answers) {
     return;
   }
 
-  // 邮件标题：算法笔试题 · 手机号
+  // 邮件标题
   const subject = `${title} · ${name} · ${phone}`;
 
-  const now = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  const timeStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  // 答题用时
+  const usedSec2 = usedSec !== undefined ? usedSec : (limitSeconds > 0 ? limitSeconds - timerSeconds : 0);
+  const usedTimeStr = `${Math.floor(usedSec2 / 60)}分${usedSec2 % 60}秒`;
 
-  // 计算答题用时
-  const usedTime = limitSeconds > 0 ? limitSeconds - timerSeconds : 0;
-  const usedMinutes = Math.floor(usedTime / 60);
-  const usedSeconds = usedTime % 60;
-  const usedTimeStr = `${usedMinutes}分${usedSeconds}秒`;
+  const submitTime2 = submitTimeStr || (() => {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  })();
 
-  // ── 构建纯文本正文 ──
-  const SEP1 = '================================================';
-  const SEP2 = '------------------------------------------------';
+  // 统计答题情况（简短摘要）
+  const totalQ = answers.length;
+  const answered = answers.filter(a => a.ans && a.ans !== '（未作答）').length;
+  const totalScore = calcTotalScore();
 
-  let answersText = '';
-  answersText += `${SEP1}\n`;
-  answersText += `  ${title} · 答卷\n`;
-  answersText += `${SEP1}\n\n`;
-  answersText += `  答题人：${name}\n`;
-  answersText += `  手机号：${phone}\n`;
-  answersText += `  开始时间：${quizStartTime}\n`;
-  answersText += `  提交时间：${timeStr}\n`;
-  answersText += `  答题用时：${usedTimeStr}\n\n`;
+  // ── 构建精简通知正文（控制在 8KB 以内）──
+  const SEP = '================================================';
+  let notifyText = '';
+  notifyText += `${SEP}\n`;
+  notifyText += `  ${title} · 答卷提交通知\n`;
+  notifyText += `${SEP}\n\n`;
+  notifyText += `  答题人：${name}\n`;
+  notifyText += `  手机号：${phone}\n`;
+  notifyText += `  开始时间：${quizStartTime || '-'}\n`;
+  notifyText += `  提交时间：${submitTime2}\n`;
+  notifyText += `  答题用时：${usedTimeStr}\n`;
+  notifyText += `  题目数量：${totalQ} 小题，已作答 ${answered} 题\n`;
+  if (totalScore > 0) notifyText += `  总分值：${totalScore} 分\n`;
+  notifyText += `\n`;
+  notifyText += `  ✅ 完整答卷已保存至后台数据库。\n`;
+  notifyText += `  请登录管理端，在「答卷记录」中查看该考生的详细作答内容。\n\n`;
+  notifyText += `${SEP}\n`;
+  notifyText += `  本邮件由系统自动发送。\n`;
+  notifyText += `${SEP}\n`;
 
-  let lastParentText = '';
-  answers.forEach((a, i) => {
-    if (a.parentTitle && a.parentTitle !== lastParentText) {
-      lastParentText = a.parentTitle;
-      answersText += `\n${SEP1}\n`;
-      answersText += `  [ ${a.parentTitle} ]\n`;
-      answersText += `${SEP1}\n`;
-      const bq = questions.find(q => q.parentTitle === a.parentTitle);
-      if (bq && bq.parentStem) {
-        answersText += `\n  题干：\n`;
-        const stem = bq.parentStem;
-        const chunkSize = 44;
-        for (let ci = 0; ci < stem.length; ci += chunkSize) {
-          answersText += `  ${stem.slice(ci, ci + chunkSize)}\n`;
-        }
-        answersText += `\n`;
-      }
-    }
-    answersText += `${SEP2}\n`;
-    answersText += `  ${a.subIndex}.（${a.score} 分）\n`;
-    answersText += `  ${a.q}\n\n`;
-    answersText += `  作答：\n`;
-    const ansLines = (a.ans || '（未作答）').split('\n');
-    ansLines.forEach(line => { answersText += `  ${line}\n`; });
-    answersText += `\n`;
-  });
-
-  answersText += `${SEP1}\n`;
-  answersText += `  以上为完整答卷，由系统自动生成。\n`;
-  answersText += `${SEP1}\n`;
-
-  const answersHtml = answersText;
-
-  // EmailJS 模板变量 - to_email 必须是字符串（多个收件人用逗号分隔）
+  // EmailJS 模板变量（仅保留必要字段，严格控制总大小）
   const toEmailStr = ejsCfg.toEmails.join(',');
-  
   const baseParams = {
-    subject:         subject,
-    quiz_title:      subject,
-    respondent_name: `${name}`,
-    submit_time:     timeStr,
-    start_time:      quizStartTime,
-    answers_text:    answersText,
-    answers_html:    answersHtml,
-    to_email:        toEmailStr,   // 关键：收件人列表字符串
+    subject,
+    quiz_title:      title,
+    respondent_name: name,
+    submit_time:     submitTime2,
+    start_time:      quizStartTime || '-',
+    answers_text:    notifyText,
+    answers_html:    notifyText,
+    to_email:        toEmailStr,
     reply_to:        ejsCfg.toEmails[0]
   };
 
@@ -1982,7 +1985,7 @@ window.sendEmail = async function(name, org, phone, title, answers) {
   try {
     await emailjs.send(ejsCfg.serviceId, ejsCfg.templateId, baseParams);
     statusEl.className = 'email-status sent';
-    statusEl.innerHTML = '✅ 答卷已成功发送至指定邮箱！';
+    statusEl.innerHTML = '✅ 答卷通知已发送至指定邮箱！完整答卷已保存至后台。';
   } catch(err) {
     console.error('EmailJS error:', err);
     statusEl.className = 'email-status fail';

@@ -1045,6 +1045,37 @@
     </div>
   </div>
 
+  <!-- 答卷记录 -->
+  <div class="card" id="submissions-card" style="padding:0;overflow:visible;">
+    <div style="padding:20px 24px 16px;border-bottom:1px solid rgba(0,212,255,0.12);display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:16px;font-weight:600;color:var(--neon-blue);">📄 答卷记录</div>
+        <div id="submissions-count" style="font-size:12px;color:var(--text-muted);margin-top:3px;">加载中...</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select id="submissions-filter-template" class="form-input compact" style="width:160px;font-size:12px;" onchange="filterSubmissions()">
+          <option value="">全部模板</option>
+        </select>
+        <button class="btn-add compact secondary" onclick="loadSubmissions()" style="padding:6px 14px;">🔄 刷新</button>
+      </div>
+    </div>
+    <div id="submissions-list" style="padding:16px 20px;"></div>
+  </div>
+
+  <!-- 答卷详情弹窗 -->
+  <div id="submission-detail-modal" class="modal-overlay" style="z-index:100010;display:none;">
+    <div class="modal-box" style="max-width:720px;width:94%;max-height:85vh;overflow-y:auto;padding:0;">
+      <div style="position:sticky;top:0;background:var(--bg-card);padding:20px 24px 16px;border-bottom:1px solid rgba(0,212,255,0.15);display:flex;align-items:center;justify-content:space-between;border-radius:16px 16px 0 0;z-index:1;">
+        <div>
+          <div id="detail-title" style="font-size:16px;font-weight:700;color:var(--neon-blue);"></div>
+          <div id="detail-meta" style="font-size:12px;color:var(--text-muted);margin-top:4px;"></div>
+        </div>
+        <button onclick="closeSubmissionDetail()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:var(--text-muted);padding:6px 14px;cursor:pointer;font-size:13px;">关闭</button>
+      </div>
+      <div id="detail-body" style="padding:20px 24px;"></div>
+    </div>
+  </div>
+
   <!-- 浮动导航按钮 -->
   <div class="float-nav">
     <button class="float-nav-btn" onclick="scrollToTop()" title="返回顶部">
@@ -1482,9 +1513,145 @@ let isLoading = false;
 function init() {
   loadData();
   loadEmailContacts();
+  loadSubmissions();
 }
 
-async function loadData() {
+// ======================================================
+// 答卷记录
+// ======================================================
+let allSubmissions = [];
+
+async function loadSubmissions() {
+  const listEl = document.getElementById('submissions-list');
+  const countEl = document.getElementById('submissions-count');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:24px 0;">加载中...</div>';
+
+  try {
+    const snap = await db.ref('submissions').once('value');
+    const data = snap.val();
+    if (!data) {
+      allSubmissions = [];
+      countEl.textContent = '暂无答卷记录';
+      listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:32px 0;">📭 暂无答卷记录</div>';
+      return;
+    }
+    // 转为数组并按提交时间倒序
+    allSubmissions = Object.values(data).sort((a, b) => {
+      return (b.submitTime || '').localeCompare(a.submitTime || '');
+    });
+
+    // 更新模板筛选下拉
+    const templateTitles = [...new Set(allSubmissions.map(s => s.quizTitle).filter(Boolean))];
+    const filterEl = document.getElementById('submissions-filter-template');
+    if (filterEl) {
+      filterEl.innerHTML = '<option value="">全部试卷</option>' +
+        templateTitles.map(t => `<option value="${escHtml(t)}">${escHtml(t)}</option>`).join('');
+    }
+
+    renderSubmissions(allSubmissions);
+  } catch(e) {
+    console.error('加载答卷失败:', e);
+    listEl.innerHTML = '<div style="text-align:center;color:var(--error);font-size:13px;padding:24px 0;">❌ 加载失败，请刷新重试</div>';
+  }
+}
+
+function filterSubmissions() {
+  const filterVal = document.getElementById('submissions-filter-template')?.value || '';
+  const filtered = filterVal
+    ? allSubmissions.filter(s => s.quizTitle === filterVal)
+    : allSubmissions;
+  renderSubmissions(filtered);
+}
+
+function renderSubmissions(list) {
+  const listEl = document.getElementById('submissions-list');
+  const countEl = document.getElementById('submissions-count');
+  if (!listEl) return;
+
+  countEl.textContent = `共 ${list.length} 份答卷`;
+
+  if (list.length === 0) {
+    listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:32px 0;">📭 暂无记录</div>';
+    return;
+  }
+
+  listEl.innerHTML = list.map(s => {
+    const answered = (s.answers || []).filter(a => a.ans && a.ans !== '（未作答）').length;
+    const total = (s.answers || []).length;
+    const usedMin = Math.floor((s.usedSeconds || 0) / 60);
+    const usedSec = (s.usedSeconds || 0) % 60;
+    const usedStr = s.usedSeconds ? `${usedMin}分${usedSec}秒` : '-';
+    return `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;margin-bottom:10px;background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.15);border-radius:12px;cursor:pointer;transition:all 0.2s;"
+      onmouseenter="this.style.background='rgba(0,212,255,0.09)'"
+      onmouseleave="this.style.background='rgba(0,212,255,0.04)'"
+      onclick="openSubmissionDetail('${s.submissionId}')">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">
+          ${escHtml(s.name || s.phone)} &nbsp;<span style="font-size:12px;color:var(--text-muted);font-weight:400;">${escHtml(s.phone || '')}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);">
+          ${escHtml(s.quizTitle || '-')} &nbsp;·&nbsp; 提交：${escHtml(s.submitTime || '-')} &nbsp;·&nbsp; 用时：${usedStr}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-left:12px;flex-shrink:0;">
+        <span style="font-size:12px;color:var(--neon-cyan);">${answered}/${total} 题</span>
+        ${s.totalScore ? `<span style="font-size:12px;color:var(--neon-blue);">${s.totalScore}分</span>` : ''}
+        <span style="color:var(--text-muted);font-size:18px;line-height:1;">›</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openSubmissionDetail(submissionId) {
+  const s = allSubmissions.find(x => x.submissionId === submissionId);
+  if (!s) return;
+
+  const usedMin = Math.floor((s.usedSeconds || 0) / 60);
+  const usedSec = (s.usedSeconds || 0) % 60;
+  const usedStr = s.usedSeconds ? `${usedMin}分${usedSec}秒` : '-';
+
+  document.getElementById('detail-title').textContent = `${s.name || s.phone} · ${s.quizTitle || '答卷'}`;
+  document.getElementById('detail-meta').textContent =
+    `手机号：${s.phone || '-'}　提交：${s.submitTime || '-'}　开始：${s.startTime || '-'}　用时：${usedStr}` +
+    (s.totalScore ? `　总分值：${s.totalScore}分` : '');
+
+  let lastParent = '';
+  const answersHtml = (s.answers || []).map(a => {
+    let groupHdr = '';
+    if (a.parentTitle && a.parentTitle !== lastParent) {
+      lastParent = a.parentTitle;
+      groupHdr = `<div style="margin:18px 0 8px;font-size:14px;font-weight:700;color:var(--neon-blue);padding:6px 12px;background:rgba(0,212,255,0.07);border-left:3px solid var(--neon-blue);border-radius:0 8px 8px 0;">${escHtml(a.parentTitle)}</div>`;
+    }
+    const isEmpty = !a.ans || a.ans === '（未作答）';
+    return `${groupHdr}
+    <div style="padding:14px 16px;margin-bottom:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;">
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">
+        <span style="color:var(--neon-cyan);font-family:var(--font-mono);">${escHtml(String(a.subIndex || ''))}</span>
+        ${a.score ? `<span style="color:var(--text-muted);font-size:11px;"> [${a.score}分]</span>` : ''}
+        <span style="margin-left:8px;">${escHtml(a.q || '')}</span>
+      </div>
+      <div style="font-size:13px;color:${isEmpty ? 'var(--text-muted)' : 'var(--text-primary)'};white-space:pre-wrap;line-height:1.75;padding:10px 12px;background:rgba(0,0,0,0.2);border-radius:8px;">
+        ${isEmpty ? '（未作答）' : escHtml(a.ans)}
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('detail-body').innerHTML = answersHtml ||
+    '<div style="color:var(--text-muted);text-align:center;padding:24px 0;">无答卷数据</div>';
+
+  const modal = document.getElementById('submission-detail-modal');
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSubmissionDetail() {
+  document.getElementById('submission-detail-modal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+
   if (isLoading) return;
   isLoading = true;
 
