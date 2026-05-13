@@ -1643,15 +1643,22 @@ function openSubmissionDetail(submissionId) {
 
   const modal = document.getElementById('submission-detail-modal');
   modal.style.display = 'flex';
+  modal.classList.add('show');
   document.body.style.overflow = 'hidden';
 }
 
 function closeSubmissionDetail() {
-  document.getElementById('submission-detail-modal').style.display = 'none';
+  const modal = document.getElementById('submission-detail-modal');
+  modal.classList.remove('show');
+  setTimeout(() => { modal.style.display = 'none'; }, 300);
   document.body.style.overflow = '';
 }
 
 
+// ======================================================
+// 从 Firebase 加载试卷数据
+// ======================================================
+async function loadData() {
   if (isLoading) return;
   isLoading = true;
 

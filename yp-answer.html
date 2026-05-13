@@ -1172,6 +1172,17 @@ let currentName = '';
 let currentQuizTitle = '';
 
 // ======================================================
+// 工具函数（必须在业务逻辑之前定义）
+// ======================================================
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escHtmlWithBr(s) {
+  const escaped = String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return escaped.replace(/\n/g, '<br>');
+}
+
+// ======================================================
 // localStorage 计时持久化工具
 // ======================================================
 function getTimerKey(phone) { return LS_PREFIX + phone; }
@@ -1762,7 +1773,7 @@ window.updateTimerDisplay = function() {
 // ======================================================
 // 提交答卷
 // ======================================================
-window.submitQuiz = function(forced = false) {
+window.submitQuiz = async function(forced = false) {
   // 校验必填题
   for (const q of questions) {
     if (!q.required) continue;
@@ -2015,21 +2026,6 @@ window.restartQuiz = function() {
   document.getElementById('login-name').value = '';
   document.getElementById('login-phone').value = '';
 };
-
-// ======================================================
-// HTML 转义
-// ======================================================
-window.escHtml = function(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-};
-
-// ======================================================
-// HTML 转义并保留换行（用于题目文本）
-// ======================================================
-window.escHtmlWithBr = function(s) {
-  const escaped = String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  return escaped.replace(/\n/g, '<br>');
-}
 
 // ======================================================
 // 浮动导航功能
