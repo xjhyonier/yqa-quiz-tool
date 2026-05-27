@@ -937,6 +937,86 @@
         height: 14px;
       }
     }
+
+    /* 批量下载相关 */
+    .batch-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .batch-checkbox {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--neon-blue);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .batch-checkbox-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .batch-selected-count {
+      font-size: 12px;
+      color: var(--neon-cyan);
+      white-space: nowrap;
+    }
+    .batch-download-btn {
+      padding: 6px 14px;
+      border: 1px solid rgba(0,212,255,0.4);
+      border-radius: 8px;
+      background: rgba(0,212,255,0.1);
+      color: var(--neon-blue);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    .batch-download-btn:hover:not(:disabled) {
+      background: rgba(0,212,255,0.2);
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 12px rgba(0,212,255,0.25);
+    }
+    .batch-download-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    /* 答卷行内的复选框 */
+    .submission-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      background: rgba(0,212,255,0.04);
+      border: 1px solid rgba(0,212,255,0.15);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .submission-row:hover {
+      background: rgba(0,212,255,0.09);
+    }
+    .submission-row .batch-checkbox {
+      flex-shrink: 0;
+      margin: 0;
+    }
+    .submission-row .submission-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .submission-row .submission-stats {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-left: 12px;
+      flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
@@ -1047,12 +1127,18 @@
 
   <!-- 答卷记录 -->
   <div class="card" id="submissions-card" style="padding:0;overflow:visible;">
-    <div style="padding:20px 24px 16px;border-bottom:1px solid rgba(0,212,255,0.12);display:flex;align-items:center;justify-content:space-between;">
+    <div style="padding:20px 24px 16px;border-bottom:1px solid rgba(0,212,255,0.12);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
       <div>
         <div style="font-size:16px;font-weight:600;color:var(--neon-blue);">📄 答卷记录</div>
         <div id="submissions-count" style="font-size:12px;color:var(--text-muted);margin-top:3px;">加载中...</div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;">
+      <div class="batch-toolbar">
+        <label class="batch-checkbox-label" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;">
+          <input type="checkbox" class="batch-checkbox" id="select-all-submissions" onclick="toggleSelectAll();event.stopPropagation();" title="全选/取消全选" />
+          <span>全选</span>
+        </label>
+        <span class="batch-selected-count" id="batch-selected-count" style="display:none;">已选 <b id="batch-cnt">0</b> 条</span>
+        <button class="batch-download-btn" id="batch-download-btn" onclick="downloadSelectedTXT()" disabled title="请先勾选答卷">📥 批量下载 TXT</button>
         <select id="submissions-filter-template" class="form-input compact" style="width:160px;font-size:12px;" onchange="filterSubmissions()">
           <option value="">全部模板</option>
         </select>
@@ -1583,11 +1669,9 @@ function renderSubmissions(list) {
     const usedSec = (s.usedSeconds || 0) % 60;
     const usedStr = s.usedSeconds ? `${usedMin}分${usedSec}秒` : '-';
     return `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;margin-bottom:10px;background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.15);border-radius:12px;cursor:pointer;transition:all 0.2s;"
-      onmouseenter="this.style.background='rgba(0,212,255,0.09)'"
-      onmouseleave="this.style.background='rgba(0,212,255,0.04)'"
-      onclick="openSubmissionDetail('${s.submissionId}')">
-      <div style="flex:1;min-width:0;">
+    <div class="submission-row">
+      <input type="checkbox" class="batch-checkbox" data-id="${s.submissionId}" onclick="event.stopPropagation();updateSelectionCount();" title="勾选此答卷" />
+      <div class="submission-info" onclick="openSubmissionDetail('${s.submissionId}')" style="cursor:pointer;">
         <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">
           ${escHtml(s.name || s.phone)} &nbsp;<span style="font-size:12px;color:var(--text-muted);font-weight:400;">${escHtml(s.phone || '')}</span>
         </div>
@@ -1595,13 +1679,18 @@ function renderSubmissions(list) {
           ${escHtml(s.quizTitle || '-')} &nbsp;·&nbsp; 提交：${escHtml(s.submitTime || '-')} &nbsp;·&nbsp; 用时：${usedStr}
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:12px;margin-left:12px;flex-shrink:0;">
+      <div class="submission-stats">
         <span style="font-size:12px;color:var(--neon-cyan);">${answered}/${total} 题</span>
         ${s.totalScore ? `<span style="font-size:12px;color:var(--neon-blue);">${s.totalScore}分</span>` : ''}
         <span style="color:var(--text-muted);font-size:18px;line-height:1;">›</span>
       </div>
     </div>`;
   }).join('');
+
+  // 重置全选状态
+  const selectAll = document.getElementById('select-all-submissions');
+  if (selectAll) selectAll.checked = false;
+  updateSelectionCount();
 }
 
 function openSubmissionDetail(submissionId) {
@@ -1652,6 +1741,119 @@ function closeSubmissionDetail() {
   modal.classList.remove('show');
   setTimeout(() => { modal.style.display = 'none'; }, 300);
   document.body.style.overflow = '';
+}
+
+
+// ======================================================
+// 批量下载答卷 TXT
+// ======================================================
+
+/** 更新已选计数和按钮状态 */
+function updateSelectionCount() {
+  const checked = document.querySelectorAll('.batch-checkbox[data-id]:checked');
+  const cnt = checked.length;
+  const cntEl = document.getElementById('batch-selected-count');
+  const cntNum = document.getElementById('batch-cnt');
+  const btn = document.getElementById('batch-download-btn');
+  if (cntEl) cntEl.style.display = cnt > 0 ? '' : 'none';
+  if (cntNum) cntNum.textContent = cnt;
+  if (btn) btn.disabled = cnt === 0;
+}
+
+/** 全选 / 取消全选 */
+function toggleSelectAll() {
+  const selectAll = document.getElementById('select-all-submissions');
+  const checkboxes = document.querySelectorAll('.batch-checkbox[data-id]');
+  const checked = selectAll.checked;
+  checkboxes.forEach(cb => { cb.checked = checked; });
+  updateSelectionCount();
+}
+
+/** 生成并下载 TXT */
+function downloadSelectedTXT() {
+  const checked = document.querySelectorAll('.batch-checkbox[data-id]:checked');
+  if (checked.length === 0) {
+    showToast('请先勾选要下载的答卷', 'warning');
+    return;
+  }
+
+  const ids = Array.from(checked).map(cb => cb.getAttribute('data-id'));
+  const subs = ids.map(id => allSubmissions.find(s => s.submissionId === id)).filter(Boolean);
+  if (subs.length === 0) {
+    showToast('未找到对应答卷数据', 'error');
+    return;
+  }
+
+  const lines = [];
+
+  // 答卷间分隔线
+  const PERSON_SEP = '========================================';
+
+  subs.forEach((s, idx) => {
+    // 答卷之间加空行
+    if (idx > 0) lines.push('');
+
+    // 考生信息头
+    lines.push(PERSON_SEP);
+    lines.push(`姓名：${s.name || '-'}　　手机号：${s.phone || '-'}`);
+    lines.push(`试卷：${s.quizTitle || '-'}　　提交时间：${s.submitTime || '-'}`);
+    const usedMin = Math.floor((s.usedSeconds || 0) / 60);
+    const usedSec = (s.usedSeconds || 0) % 60;
+    lines.push(`用时：${s.usedSeconds ? usedMin + '分' + usedSec + '秒' : '-'}　　得分：${s.totalScore != null ? s.totalScore + '分' : '-'}`);
+    lines.push(PERSON_SEP);
+    lines.push('');
+
+    const answers = s.answers || [];
+    if (answers.length === 0) {
+      lines.push('（无答题数据）');
+      return;
+    }
+
+    // 按大题分组
+    let currentParent = '';
+    answers.forEach((a, ai) => {
+      // 新的大题标题
+      if (a.parentTitle && a.parentTitle !== currentParent) {
+        currentParent = a.parentTitle;
+        lines.push(`【${currentParent}】`);
+        lines.push('');
+      }
+
+      // 题目
+      const qLabel = a.subIndex != null ? `题${a.subIndex}` : `Q${ai + 1}`;
+      lines.push(`${qLabel}：${a.q || '（无题目）'}`);
+
+      // 答案
+      const ansText = a.ans || '（未作答）';
+      lines.push(`答：${ansText}`);
+
+      // 得分（如果有）
+      if (a.score != null) {
+        lines.push(`  得分：${a.score}分`);
+      }
+
+      lines.push('--');
+      lines.push('');
+    });
+  });
+
+  const content = '\uFEFF' + lines.join('\n');
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const now = new Date();
+  const ts = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+  const filename = `答卷导出_${ts}.txt`;
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast(`已导出 ${subs.length} 份答卷`, 'success');
 }
 
 
