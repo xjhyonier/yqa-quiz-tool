@@ -1786,26 +1786,27 @@ function downloadSelectedTXT() {
 
   const lines = [];
 
-  // 答卷间分隔线
-  const PERSON_SEP = '========================================';
+  // 分隔线定义
+  const PERSON_SEP  = '════════════════════════════════════════';
+  const QUEST_SEP   = '    - - - - - - - - - - - - - - - - - -';
 
   subs.forEach((s, idx) => {
     // 答卷之间加空行
     if (idx > 0) lines.push('');
 
-    // 考生信息头
+    // 考生信息头（双线 + 缩进）
     lines.push(PERSON_SEP);
-    lines.push(`姓名：${s.name || '-'}　　手机号：${s.phone || '-'}`);
-    lines.push(`试卷：${s.quizTitle || '-'}　　提交时间：${s.submitTime || '-'}`);
+    lines.push(`  姓名：${s.name || '-'}　　手机号：${s.phone || '-'}`);
+    lines.push(`  试卷：${s.quizTitle || '-'}　　提交时间：${s.submitTime || '-'}`);
     const usedMin = Math.floor((s.usedSeconds || 0) / 60);
     const usedSec = (s.usedSeconds || 0) % 60;
-    lines.push(`用时：${s.usedSeconds ? usedMin + '分' + usedSec + '秒' : '-'}　　得分：${s.totalScore != null ? s.totalScore + '分' : '-'}`);
+    lines.push(`  用时：${s.usedSeconds ? usedMin + '分' + usedSec + '秒' : '-'}　　得分：${s.totalScore != null ? s.totalScore + '分' : '-'}`);
     lines.push(PERSON_SEP);
     lines.push('');
 
     const answers = s.answers || [];
     if (answers.length === 0) {
-      lines.push('（无答题数据）');
+      lines.push('  （无答题数据）');
       return;
     }
 
@@ -1815,24 +1816,24 @@ function downloadSelectedTXT() {
       // 新的大题标题
       if (a.parentTitle && a.parentTitle !== currentParent) {
         currentParent = a.parentTitle;
-        lines.push(`【${currentParent}】`);
+        lines.push(`  ■ ${currentParent}`);
         lines.push('');
       }
 
       // 题目
       const qLabel = a.subIndex != null ? `题${a.subIndex}` : `Q${ai + 1}`;
-      lines.push(`${qLabel}：${a.q || '（无题目）'}`);
+      lines.push(`  ▸ ${qLabel}：${a.q || '（无题目）'}`);
 
-      // 答案
+      // 答案（缩进更深）
       const ansText = a.ans || '（未作答）';
-      lines.push(`答：${ansText}`);
+      lines.push(`     ↳ 答：${ansText}`);
 
       // 得分（如果有）
       if (a.score != null) {
-        lines.push(`  得分：${a.score}分`);
+        lines.push(`      得分：${a.score}分`);
       }
 
-      lines.push('--');
+      lines.push(QUEST_SEP);
       lines.push('');
     });
   });
